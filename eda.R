@@ -20,10 +20,12 @@ vars <- c("B01003_001",    # total population
           "B25070_009",    # N renters with 40-49.9% of income to rent 
           "B25070_010",    # N renters with 50+% of income to rent 
           "B25002_001",    # total housing units
-          "B25064_001")    # median gross rent
+          "B25064_001",    # median gross rent
+          "B25033_008")    # total renter population  
 
 # Rent burden = percent of renting households with gross rent 30% or more of household income
 
+# *ZCTAs ----
 # Error : The Census Bureau has not yet released the CB ZCTA file for 2022. 
 # Please use the argument `year = 2020` or `cb = FALSE` instead.
 zcta_rent <- get_acs(geography = "zcta",
@@ -45,16 +47,20 @@ zcta_rent <- zcta_rent %>%
          rent40 = "B25070_009E",
          rent50 = "B25070_010E",
          housing_units = "B25002_001E",
-         med_gross_rent = "B25064_001E")
+         med_gross_rent = "B25064_001E",
+         total_renters = "B25033_008E")
 
-# Calculate rent burden variables
+# Normalize by populations
 zcta_rent <- zcta_rent %>%
   filter(housing_units > 0,
          total_pop > 0) %>%
-  mutate(percent_rentals = (rental_units/housing_units) * 100,
+  mutate(percent_rental_units = (rental_units/housing_units) * 100,
+         percent_renters = (total_renters/total_pop) * 100,
          total_burdened = rent30 + rent35 + rent40 + rent50,
-         percent_burdened = (total_burdened/total_pop) * 100)
-
+         percent_burdened = case_when(
+           total_renters > 0 ~ (total_burdened/total_renters) * 100,
+           TRUE ~ NA))
+           
 # Supplemental zip info
 zips <- read_csv("data/raw/zip_code_database.csv")
 
@@ -69,7 +75,7 @@ zcta_rent <- zcta_rent %>%
 
 # Visualize ----
 
-# *Rent burden ----
+# *Renters ----
 pal <- colorNumeric(palette = "viridis", domain = NULL, reverse = TRUE)
 
 zcta_rent %>%
@@ -80,10 +86,38 @@ zcta_rent %>%
               weight = 0.5,
               opacity = 1,
               color = "black",
+              fillColor = ~pal(percent_renters),
+              fillOpacity = 0.5,
+              popup = paste0("Total Renters: ", zcta_rent$total_renters, "<br>",
+                             "Total Population ", zcta_rent$total_pop, "<br>",
+                             "Percent Renters: ", round(zcta_rent$percent_renters), "%", "<br>",
+                             "Zipcode: ", zcta_rent$GEOID, "<br>",
+                             "Region: ", zcta_rent$primary_city, ", ", zcta_rent$county),
+              highlightOptions = highlightOptions(
+                fillOpacity = 1,
+                bringToFront = FALSE)) %>%
+  addLegend("bottomright",
+            pal = pal, 
+            values = ~ percent_renters,
+            title = paste0("Percent of Population", "<br>",
+                           "Living in Rental Units"),
+            labFormat = labelFormat(suffix = "%"), 
+            opacity = 1)
+
+# *Rent burden ----
+zcta_rent %>%
+  st_transform(crs = 4326) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(stroke = TRUE, 
+              weight = 0.5,
+              opacity = 1,
+              color = "black",
               fillColor = ~pal(percent_burdened),
               fillOpacity = 0.5,
-              popup = paste0("Percent of Population: ", round(zcta_rent$percent_burdened), "%", "<br>",
-                             "Number of Cost-Burdened Renters: ", zcta_rent$total_burdened, "<br>",
+              popup = paste0("Total Renters: ", zcta_rent$total_renters, "<br>",
+                             "Cost-Burdened Renters: ", zcta_rent$total_burdened, "<br>",
+                             "Percent of Renters: ", round(zcta_rent$percent_burdened), "%", "<br>",
                              "Zipcode: ", zcta_rent$GEOID, "<br>",
                              "Region: ", zcta_rent$primary_city, ", ", zcta_rent$county),
               highlightOptions = highlightOptions(
@@ -92,8 +126,8 @@ zcta_rent %>%
   addLegend("bottomright",
             pal = pal, 
             values = ~ percent_burdened,
-            title = paste0("Percent of Population", "<br>",
-                           "Identified as Rent-Burdened"),
+            title = paste0("Percent of Renters", "<br>",
+                           "Identified as Cost-Burdened"),
             labFormat = labelFormat(suffix = "%"), 
             opacity = 1)
 
@@ -111,7 +145,7 @@ zcta_rent %>%
               popup = paste0("Median Gross Rent: ", scales::dollar(zcta_rent$med_gross_rent), "<br>",
                              "Median Household Income: ", scales::dollar(zcta_rent$med_hh_income), "<br>",
                              "Number of Cost-Burdened Renters: ", zcta_rent$total_burdened, "<br>",
-                             "Total Population: ", zcta_rent$total_pop, "<br>",
+                             "Total Rental Population: ", zcta_rent$total_renters, "<br>",
                              "Zipcode: ", zcta_rent$GEOID, "<br>",
                              "Region: ", zcta_rent$primary_city, ", ", zcta_rent$county),
               highlightOptions = highlightOptions(
@@ -124,7 +158,7 @@ zcta_rent %>%
             labFormat = labelFormat(prefix = "$"), 
             opacity = 1)
 
-# *Median gross income ----
+# *Median hh income ----
 zcta_rent %>%
   st_transform(crs = 4326) %>%
   leaflet() %>%
@@ -135,10 +169,9 @@ zcta_rent %>%
               color = "black",
               fillColor = ~pal(med_hh_income),
               fillOpacity = 0.5,
-              popup = paste0("Median Gross Rent: ", scales::dollar(zcta_rent$med_gross_rent), "<br>",
-                             "Median Household Income: ", scales::dollar(zcta_rent$med_hh_income), "<br>",
+              popup = paste0("Median Household Income: ", scales::dollar(zcta_rent$med_hh_income), "<br>",
+                             "Median Gross Rent: ", scales::dollar(zcta_rent$med_gross_rent), "<br>",
                              "Number of Cost-Burdened Renters: ", zcta_rent$total_burdened, "<br>",
-                             "Total Population: ", zcta_rent$total_pop, "<br>",
                              "Zipcode: ", zcta_rent$GEOID, "<br>",
                              "Region: ", zcta_rent$primary_city, ", ", zcta_rent$county),
               highlightOptions = highlightOptions(
@@ -155,24 +188,90 @@ zcta_rent %>%
 
 evictions <- read.delim("data/raw/cases_residential_only.txt", sep = ",")
 
-total_filed <- evictions %>% group_by(defendant_zip) %>%
-  count()
-
 evictions %>%
   group_by(judgment) %>%
-  count() 
+  count()
+
+# # A tibble: 11 × 2
+# # Groups:   judgment [11]
+# judgment                                n
+# <chr>                               <int>
+#   1 ""                                   5773
+# 2 "Case Dismissed"                   227577
+# 3 "Case Dismissed with prejudice"       801
+# 4 "Case Dismissed without prejudice"   2408
+# 5 "Defendant"                           848
+# 6 "Non-suit"                          69405
+# 7 "Not Found/Unserved"                 4505
+# 8 "Other"                              5948
+# 9 "Plaintiff"                        349681
+# 10 "Transfer/Change of Venue"             89
+# 11 "null without prejudice"                3
 
 # Questions:
 # What should we do when there is no judgement? 
 # What about when the judgement is other? 
 # Do we care if a case was dismissed w/ or w/o prejudice? 
 
-# Quick viz of number of eviction filings per zip:
+# Temp solution:
+evictions <- evictions %>%
+  mutate(
+    default = case_when(
+      grepl("Default", latest_hearing_result) ~ TRUE,
+      TRUE ~ FALSE),
+    judgment_clean = case_when(
+      grepl("Case|Non-suit|Unserved|null", judgment) ~ "Case Dismissed",
+      grepl("Defendant", judgment) ~ "Defendant",
+      grepl("Plaintiff", judgment) ~ "Plaintiff",
+      grepl("Other|Transfer", judgment) ~ "Other",
+      TRUE ~ "None"))
 
+# Get totals
+total_filed <- evictions %>% group_by(defendant_zip) %>%
+  count() %>%
+  rename(total_filed = n)
+
+total_default <- evictions %>% 
+  filter(default == TRUE) %>%
+  group_by(defendant_zip) %>%
+  count() %>%
+  rename(total_default = n)
+
+total_plaintiff_won <- evictions %>% 
+  filter(judgment_clean == "Plaintiff") %>%
+  group_by(defendant_zip) %>%
+  count() %>%
+  rename(total_plaintiff_won = n)
+  
+# Join back to df
 zcta_rent <- zcta_rent %>%
   mutate(GEOID = as.integer(GEOID)) %>%
-  left_join(total_filed, by = join_by(GEOID == defendant_zip))
+  left_join(total_filed, by = join_by(GEOID == defendant_zip)) %>%
+  left_join(total_default, by = join_by(GEOID == defendant_zip)) %>%
+  left_join(total_plaintiff_won, by = join_by(GEOID == defendant_zip))
 
+# TODO: convert NAs to 0?
+
+# Derive some variables
+zcta_rent <- zcta_rent %>%
+  mutate(
+    # total filed per rental unit
+    filed_unit = case_when( 
+      rental_units > 0 ~ (total_filed/rental_units) * 100,  
+      TRUE ~ NA),
+    # total filed per renter
+    filed_renter = case_when(
+      total_renters > 0 ~ (total_filed/total_renters) * 100,
+      TRUE ~ NA),
+    # percent default
+    percent_default = case_when(
+      total_filed > 0 ~ (total_default/total_filed) * 100,
+      TRUE ~ NA),
+    percent_plaintiff_won = case_when(
+      total_filed > 0 ~ (total_plaintiff_won/total_filed) * 100,
+      TRUE ~ NA))
+         
+# *Evictions per unit----
 zcta_rent %>%
   st_transform(crs = 4326) %>%
   leaflet() %>%
@@ -181,10 +280,11 @@ zcta_rent %>%
               weight = 0.5,
               opacity = 1,
               color = "black",
-              fillColor = ~pal(n),
+              fillColor = ~pal(filed_unit),
               fillOpacity = 0.5,
-              popup = paste0("Number of evictions filed: ", zcta_rent$n, "<br>",
-                             "Total Population: ", zcta_rent$total_pop, "<br>",
+              popup = paste0("Eviction Rate per Rental Unit: ", round(zcta_rent$filed_unit), "%", "<br>",
+                             "Total Rental Households: ", zcta_rent$rental_units, "<br>",
+                             "Evictions Filed: ", zcta_rent$total_filed, "<br>",
                              "Zipcode: ", zcta_rent$GEOID, "<br>",
                              "Region: ", zcta_rent$primary_city, ", ", zcta_rent$county),
               highlightOptions = highlightOptions(
@@ -192,11 +292,38 @@ zcta_rent %>%
                 bringToFront = FALSE)) %>%
   addLegend("bottomright",
             pal = pal, 
-            values = ~ n,
-            title = "Number of Evictions Filed",
+            values = ~ filed_unit,
+            title = paste0("Eviction Rate", "<br>",
+                           "Per Rental Unit"),
+            labFormat = labelFormat(suffix = "%"),
             opacity = 1)
 
-# TODO: number of evictions per total households? 
-
-
-
+# *Evictions per renter ----
+zcta_rent %>%
+  st_transform(crs = 4326) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(stroke = TRUE, 
+              weight = 0.5,
+              opacity = 1,
+              color = "black",
+              fillColor = ~pal(filed_renter),
+              fillOpacity = 0.5,
+              popup = paste0("Eviction Rate per Renter: ", round(zcta_rent$filed_renter), "%", "<br>",
+                             "Total Renters: ", zcta_rent$total_renters, "<br>",
+                             "Evictions Filed: ", zcta_rent$total_filed, "<br>",
+                             "Zipcode: ", zcta_rent$GEOID, "<br>",
+                             "Region: ", zcta_rent$primary_city, ", ", zcta_rent$county),
+              highlightOptions = highlightOptions(
+                fillOpacity = 1,
+                bringToFront = FALSE)) %>%
+  addLegend("bottomright",
+            pal = pal, 
+            values = ~ filed_renter,
+            title = paste0("Eviction Rate", "<br>",
+                           "Per Renter"),
+            labFormat = labelFormat(suffix = "%"),
+            opacity = 1)
+# TODO:
+# *Percent default ----
+# *Percent plaintiff won ----
