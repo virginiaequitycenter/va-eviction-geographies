@@ -38,6 +38,7 @@ zcta_rent <- get_acs(geography = "zcta",
 zcta_rent <- zcta_rent %>%
   filter(GEOID %in% get_zctas_by_state("VA")) %>%
   select(-ends_with("M")) %>%
+  mutate(GEOID = as.numeric(GEOID)) %>%
   rename(total_pop = "B01003_001E",
          pov_rate = "S1701_C03_001E",
          med_hh_income = "S1901_C01_012E",
@@ -60,6 +61,9 @@ zcta_rent <- zcta_rent %>%
          percent_burdened = case_when(
            total_renters > 0 ~ (total_burdened/total_renters) * 100,
            TRUE ~ NA))
+
+#write_csv(zcta_rent, "data/zcta_rent.csv")
+#zcta_rent <- read_csv("data/zcta_rent.csv")
            
 # Supplemental zip info
 zips <- read_csv("data/raw/zip_code_database.csv")
@@ -67,7 +71,8 @@ zips <- read_csv("data/raw/zip_code_database.csv")
 zips <- zips %>%
   filter(state == "VA",
          decommissioned == 0) %>%
-  select(zip, type, primary_city, county)
+  select(zip, type, primary_city, county) %>%
+  mutate(zip = as.numeric(zip))
 
 zcta_rent <- zcta_rent %>%
   left_join(zips, by = join_by(GEOID == zip)) %>%
@@ -188,6 +193,9 @@ zcta_rent %>%
 
 evictions <- read.delim("data/raw/cases_residential_only.txt", sep = ",")
 
+evictions <- evictions %>%
+  mutate(principal_amount = parse_number(principal_amount))
+
 evictions %>%
   group_by(judgment) %>%
   count()
@@ -226,7 +234,7 @@ evictions <- evictions %>%
       grepl("Other|Transfer", judgment) ~ "Other",
       TRUE ~ "None"))
 
-# Get totals
+# Get totals and medians by geography
 total_filed <- evictions %>% group_by(defendant_zip) %>%
   count() %>%
   rename(total_filed = n)
@@ -242,13 +250,19 @@ total_plaintiff_won <- evictions %>%
   group_by(defendant_zip) %>%
   count() %>%
   rename(total_plaintiff_won = n)
+
+median_principal <- evictions %>%
+  group_by(defendant_zip) %>%
+  summarise(median_principal = median(principal_amount, na.rm = TRUE))
   
+
 # Join back to df
 zcta_rent <- zcta_rent %>%
   mutate(GEOID = as.integer(GEOID)) %>%
   left_join(total_filed, by = join_by(GEOID == defendant_zip)) %>%
   left_join(total_default, by = join_by(GEOID == defendant_zip)) %>%
-  left_join(total_plaintiff_won, by = join_by(GEOID == defendant_zip))
+  left_join(total_plaintiff_won, by = join_by(GEOID == defendant_zip)) %>%
+  left_join(median_principal, by = join_by(GEOID == defendant_zip))
 
 # TODO: convert NAs to 0?
 
@@ -263,15 +277,19 @@ zcta_rent <- zcta_rent %>%
     filed_renter = case_when(
       total_renters > 0 ~ (total_filed/total_renters) * 100,
       TRUE ~ NA),
+    # total filed per total pop
+    filed_pop = (total_filed/total_pop) * 100,
     # percent default
     percent_default = case_when(
       total_filed > 0 ~ (total_default/total_filed) * 100,
       TRUE ~ NA),
+    # percent plaintiff won 
     percent_plaintiff_won = case_when(
       total_filed > 0 ~ (total_plaintiff_won/total_filed) * 100,
-      TRUE ~ NA))
+      TRUE ~ NA),
+    )
          
-# *Evictions per unit----
+# *Evictions per rental unit----
 zcta_rent %>%
   st_transform(crs = 4326) %>%
   leaflet() %>%
@@ -324,6 +342,111 @@ zcta_rent %>%
                            "Per Renter"),
             labFormat = labelFormat(suffix = "%"),
             opacity = 1)
-# TODO:
+
+# *Evictions per total pop ----
+zcta_rent %>%
+  st_transform(crs = 4326) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(stroke = TRUE, 
+              weight = 0.5,
+              opacity = 1,
+              color = "black",
+              fillColor = ~pal(filed_pop),
+              fillOpacity = 0.5,
+              popup = paste0("Eviction Rate per Total Population: ", round(zcta_rent$filed_pop), "%", "<br>",
+                             "Evictions Filed: ", zcta_rent$total_filed, "<br>",
+                             "Total Population: ", zcta_rent$total_pop, "<br>",
+                             "Zipcode: ", zcta_rent$GEOID, "<br>",
+                             "Region: ", zcta_rent$primary_city, ", ", zcta_rent$county),
+              highlightOptions = highlightOptions(
+                fillOpacity = 1,
+                bringToFront = FALSE)) %>%
+  addLegend("bottomright",
+            pal = pal, 
+            values = ~ filed_pop,
+            title = paste0("Eviction Rate Per", "<br>",
+                           "Total Population"),
+            labFormat = labelFormat(suffix = "%"),
+            opacity = 1)
+
 # *Percent default ----
+zcta_rent %>%
+  st_transform(crs = 4326) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(stroke = TRUE, 
+              weight = 0.5,
+              opacity = 1,
+              color = "black",
+              fillColor = ~pal(percent_default),
+              fillOpacity = 0.5,
+              popup = paste0("Default Rate: ", round(zcta_rent$percent_default), "%", "<br>",
+                             "Evictions Filed: ", zcta_rent$total_filed, "<br>",
+                             "Total Population: ", zcta_rent$total_pop, "<br>",
+                             "Zipcode: ", zcta_rent$GEOID, "<br>",
+                             "Region: ", zcta_rent$primary_city, ", ", zcta_rent$county),
+              highlightOptions = highlightOptions(
+                fillOpacity = 1,
+                bringToFront = FALSE)) %>%
+  addLegend("bottomright",
+            pal = pal, 
+            values = ~ percent_default,
+            title = paste0("Default Rate"),
+            labFormat = labelFormat(suffix = "%"),
+            opacity = 1)
+
 # *Percent plaintiff won ----
+zcta_rent %>%
+  st_transform(crs = 4326) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(stroke = TRUE, 
+              weight = 0.5,
+              opacity = 1,
+              color = "black",
+              fillColor = ~pal(percent_plaintiff_won),
+              fillOpacity = 0.5,
+              popup = paste0("Plaintiff Won: ", round(zcta_rent$percent_plaintiff_won), "%", "<br>",
+                             "Default Rate: ", round(zcta_rent$percent_default), "%", "<br>",
+                             "Evictions Filed: ", zcta_rent$total_filed, "<br>",
+                             "Total Population: ", zcta_rent$total_pop, "<br>",
+                             "Zipcode: ", zcta_rent$GEOID, "<br>",
+                             "Region: ", zcta_rent$primary_city, ", ", zcta_rent$county),
+              highlightOptions = highlightOptions(
+                fillOpacity = 1,
+                bringToFront = FALSE)) %>%
+  addLegend("bottomright",
+            pal = pal, 
+            values = ~ percent_plaintiff_won,
+            title = paste0("Percent Plaintiff Won"),
+            labFormat = labelFormat(suffix = "%"),
+            opacity = 1)
+
+# *Median Principal Amount ----
+zcta_rent %>%
+  st_transform(crs = 4326) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(stroke = TRUE, 
+              weight = 0.5,
+              opacity = 1,
+              color = "black",
+              fillColor = ~pal(median_principal),
+              fillOpacity = 0.5,
+              popup = paste0("Median Principal Amount: ", scales::dollar(zcta_rent$median_principal), "<br>",
+                             "Evictions Filed: ", zcta_rent$total_filed, "<br>",
+                             "Total Population: ", zcta_rent$total_pop, "<br>",
+                             "Zipcode: ", zcta_rent$GEOID, "<br>",
+                             "Region: ", zcta_rent$primary_city, ", ", zcta_rent$county),
+              highlightOptions = highlightOptions(
+                fillOpacity = 1,
+                bringToFront = FALSE)) %>%
+  addLegend("bottomright",
+            pal = pal, 
+            values = ~ median_principal,
+            title = paste0("Median Principal Amount"),
+            labFormat = labelFormat(prefix = "$"),
+            opacity = 1)
+
+  
