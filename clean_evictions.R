@@ -4,15 +4,9 @@ library(tidyverse)
 remotes::install_github("virginiaequitycenter/ECtools")
 library(ECtools)
 
-# TODO: 
-# -calculate median principal amount per zip- DONE eda.R
-# -clean and organize judgments - DONE eda.R
-# -defendent plaintiff present - DONE 
-# -non-person plaintiffs 
-
 evictions <- read.delim("data/raw/cases_residential_only.txt", sep = ",")
 
-# Identify if the defendent had an attorney present 
+# Identify if the defendant had an attorney present 
 evictions$defendant_attorney <- na_if(evictions$defendant_attorney, "")
 
 evictions <- evictions %>%

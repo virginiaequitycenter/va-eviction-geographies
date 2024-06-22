@@ -66,7 +66,7 @@ zcta_rent <- zcta_rent %>%
 #zcta_rent <- read_csv("data/zcta_rent.csv")
            
 # Supplemental zip info
-zips <- read_csv("data/raw/zip_code_database.csv")
+zips <- read_csv("data/zip_code_database.csv")
 
 zips <- zips %>%
   filter(state == "VA",
@@ -78,7 +78,7 @@ zcta_rent <- zcta_rent %>%
   left_join(zips, by = join_by(GEOID == zip)) %>%
   drop_na(type)
 
-# Visualize ----
+# Visualize----
 
 # *Renters ----
 pal <- colorNumeric(palette = "viridis", domain = NULL, reverse = TRUE)
@@ -191,15 +191,24 @@ zcta_rent %>%
 
 # # Evictions ----
 
-evictions <- read.delim("data/raw/cases_residential_only.txt", sep = ",")
+evictions <- read.delim("data/cases_residential_only.txt", sep = ",")
+
+# Identify if the defendant had an attorney present 
+evictions$defendant_attorney <- na_if(evictions$defendant_attorney, "")
 
 evictions <- evictions %>%
-  mutate(principal_amount = parse_number(principal_amount))
+  mutate(
+    d_attorney_present = case_when(
+      defendant_attorney == "NONE" | defendant_attorney == "SELF-REPRESENTED" | is.na(defendant_attorney) ~ FALSE,
+      TRUE ~ TRUE),
+    principal_amount = parse_number(principal_amount))
 
-evictions %>%
-  group_by(judgment) %>%
-  count()
+# Identify non-residential plaintiffs 
+#remotes::install_github("virginiaequitycenter/ECtools")
+library(ECtools)
+evictions$plaintiff_non_residential <- identify_non_residential(evictions$plaintiff_name)
 
+# Explore judgments:
 # # A tibble: 11 × 2
 # # Groups:   judgment [11]
 # judgment                                n
@@ -254,7 +263,20 @@ total_plaintiff_won <- evictions %>%
 median_principal <- evictions %>%
   group_by(defendant_zip) %>%
   summarise(median_principal = median(principal_amount, na.rm = TRUE))
-  
+
+#Number of cases where the defendant had an attorney 
+n_d_attorney <- evictions %>%
+  filter(d_attorney_present == TRUE) %>%
+  group_by(defendant_zip) %>%
+  count() %>%
+  rename(n_d_attorney = n)
+
+# Rate of non-person evictors 
+cases_plaintiff_business <- evictions %>%
+  filter(plaintiff_non_residential == TRUE) %>%
+  group_by(defendant_zip) %>%
+  count() %>%
+  rename(cases_plaintiff_business = n)
 
 # Join back to df
 zcta_rent <- zcta_rent %>%
@@ -262,7 +284,9 @@ zcta_rent <- zcta_rent %>%
   left_join(total_filed, by = join_by(GEOID == defendant_zip)) %>%
   left_join(total_default, by = join_by(GEOID == defendant_zip)) %>%
   left_join(total_plaintiff_won, by = join_by(GEOID == defendant_zip)) %>%
-  left_join(median_principal, by = join_by(GEOID == defendant_zip))
+  left_join(median_principal, by = join_by(GEOID == defendant_zip)) %>%
+  left_join(n_d_attorney, by = join_by(GEOID == defendant_zip)) %>%
+  left_join(cases_plaintiff_business, by = join_by(GEOID == defendant_zip))
 
 # TODO: convert NAs to 0?
 
@@ -287,6 +311,14 @@ zcta_rent <- zcta_rent %>%
     percent_plaintiff_won = case_when(
       total_filed > 0 ~ (total_plaintiff_won/total_filed) * 100,
       TRUE ~ NA),
+    # percent where defendant had an attorney present
+    percent_d_attorney = case_when(
+      total_filed > 0 ~ (n_d_attorney / total_filed) * 100,
+      TRUE ~ NA),
+    # percent filed by non-person plaintiffs
+    percent_plaintiff_business= case_when(
+      total_filed > 0 ~ (cases_plaintiff_business / total_filed) * 100, 
+      TRUE ~ NA)
     )
          
 # *Evictions per rental unit----
@@ -449,4 +481,57 @@ zcta_rent %>%
             labFormat = labelFormat(prefix = "$"),
             opacity = 1)
 
+# *Percent defendant attorney present ----
+zcta_rent %>%
+  st_transform(crs = 4326) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(stroke = TRUE, 
+              weight = 0.5,
+              opacity = 1,
+              color = "black",
+              fillColor = ~pal(percent_d_attorney),
+              fillOpacity = 0.5,
+              popup = paste0("Defendant Attorney Present: ", round(zcta_rent$percent_d_attorney), "%", "<br>",
+                             "Evictions Filed: ", zcta_rent$total_filed, "<br>",
+                             "Total Population: ", zcta_rent$total_pop, "<br>",
+                             "Zipcode: ", zcta_rent$GEOID, "<br>",
+                             "Region: ", zcta_rent$primary_city, ", ", zcta_rent$county),
+              highlightOptions = highlightOptions(
+                fillOpacity = 1,
+                bringToFront = FALSE)) %>%
+  addLegend("bottomright",
+            pal = pal, 
+            values = ~ percent_d_attorney,
+            title = paste0("Percent of Cases", "<br>",
+                           "with a Defendant Attorney"),
+            labFormat = labelFormat(suffix = "%"),
+            opacity = 1)
+
+# *Percent of cases filed by non-person plaintiffs ----
+zcta_rent %>%
+  st_transform(crs = 4326) %>%
+  leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(stroke = TRUE, 
+              weight = 0.5,
+              opacity = 1,
+              color = "black",
+              fillColor = ~pal(percent_plaintiff_business),
+              fillOpacity = 0.5,
+              popup = paste0("Non-Person Plaintiffs: ", round(zcta_rent$percent_plaintiff_business), "%", "<br>",
+                             "Evictions Filed: ", zcta_rent$total_filed, "<br>",
+                             "Total Population: ", zcta_rent$total_pop, "<br>",
+                             "Zipcode: ", zcta_rent$GEOID, "<br>",
+                             "Region: ", zcta_rent$primary_city, ", ", zcta_rent$county),
+              highlightOptions = highlightOptions(
+                fillOpacity = 1,
+                bringToFront = FALSE)) %>%
+  addLegend("bottomright",
+            pal = pal, 
+            values = ~ percent_plaintiff_business,
+            title = paste0("Percent of Cases Filed", "<br>",
+                           "by Non-Person Plaintiffs"),
+            labFormat = labelFormat(suffix = "%"),
+            opacity = 1)
   
