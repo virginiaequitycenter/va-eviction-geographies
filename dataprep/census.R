@@ -25,7 +25,7 @@ vars <- c("B01003_001",    # total population
 
 # Rent burden = percent of renting households with gross rent 30% or more of household income
 
-# ZCTAs ----
+# Zipcode level ----
 # Error : The Census Bureau has not yet released the CB ZCTA file for 2022. 
 # Please use the argument `year = 2020` or `cb = FALSE` instead.
 zcta_rent <- get_acs(geography = "zcta",
@@ -75,7 +75,7 @@ zcta_rent <- zcta_rent %>%
   left_join(zips, by = join_by(GEOID == zip)) %>%
   drop_na(type)
 
-# Read clean eviction data----
+# * Read clean eviction data----
 evictions_zip <- read_csv("data/evictions_zip.csv")
 
 # Join with ZCTA df
@@ -83,7 +83,7 @@ zcta_rent <- zcta_rent %>%
   mutate(GEOID = as.integer(GEOID)) %>%
   left_join(evictions_zip, by = join_by(GEOID == defendant_zip))
 
-# Derive some variables ----
+# * Derive some variables ----
 zcta_rent <- zcta_rent %>%
   mutate(
     # total filed per rental unit
@@ -119,3 +119,41 @@ zcta_rent <- zcta_rent %>%
     )
 
 saveRDS(zcta_rent, "data/zcta_rent.RDS")
+
+# County level ----
+# county_rent <- get_acs(geography = "county",
+#                        state = "VA",
+#                        variable = vars,
+#                        geometry = TRUE, 
+#                        output = "wide")
+# 
+# county_rent <- county_rent %>%
+#   select(-ends_with("M")) %>%
+#   mutate(fips = str_sub(GEOID, 3, -1)) %>%
+#   rename(total_pop = "B01003_001E",
+#          pov_rate = "S1701_C03_001E",
+#          med_hh_income = "S1901_C01_012E",
+#          rental_units = "B25070_001E",
+#          rent30 = "B25070_007E",
+#          rent35 = "B25070_008E",
+#          rent40 = "B25070_009E",
+#          rent50 = "B25070_010E",
+#          housing_units = "B25002_001E",
+#          med_gross_rent = "B25064_001E",
+#          total_renters = "B25033_008E")
+# 
+# 
+# # Normalize by populations
+# county_rent <- county_rent %>%
+#   filter(housing_units > 0,
+#          total_pop > 0) %>%
+#   mutate(percent_rental_units = (rental_units/housing_units) * 100,
+#          percent_renters = (total_renters/total_pop) * 100,
+#          total_burdened = rent30 + rent35 + rent40 + rent50,
+#          percent_burdened = case_when(
+#            total_renters > 0 ~ (total_burdened/total_renters) * 100,
+#            TRUE ~ NA))
+# 
+# # * Read clean eviction data----
+# evictions_zip <- read_csv("data/evictions_zip.csv")
+

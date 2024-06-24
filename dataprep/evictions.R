@@ -66,7 +66,8 @@ evictions <- evictions %>%
       grepl("Other|Transfer", judgment) ~ "Other",
       TRUE ~ "None"))
 
-# Derive some variables: ----
+# Summarize by zip ----
+# Derive some variables: 
 total_filed <- evictions %>% group_by(defendant_zip) %>%
   count() %>%
   rename(total_filed = n)
@@ -109,7 +110,7 @@ cases_plaintiff_business <- evictions %>%
 
 # Question: how should we handle NA values? Convert to zero?
 
-# Join by zip geography: ----
+# Join by zip geography:
 evictions_zip <- total_filed %>%
   left_join(total_default) %>%
   left_join(total_plaintiff_won) %>%
