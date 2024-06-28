@@ -11,6 +11,7 @@ library(zctaCrosswalk)
 
 # Census ----
 # Initial variables to explore: 
+# Rent burden = percent of renting households with gross rent 30% or more of household income
 vars <- c("B01003_001",    # total population
           "S1701_C03_001", # poverty rate
           "S1901_C01_012", # median household income
@@ -23,7 +24,6 @@ vars <- c("B01003_001",    # total population
           "B25064_001",    # median gross rent
           "B25033_008")    # total renter population  
 
-# Rent burden = percent of renting households with gross rent 30% or more of household income
 
 # Zipcode level ----
 # Error : The Census Bureau has not yet released the CB ZCTA file for 2022. 
@@ -62,7 +62,8 @@ zcta_rent <- zcta_rent %>%
            total_renters > 0 ~ (total_burdened/total_renters) * 100,
            TRUE ~ NA))
 
-# Supplemental zip info ----
+# * Supplemental info ----
+# Zip codes:
 zips <- read_csv("data/zip_code_database.csv")
 
 zips <- zips %>%
@@ -75,13 +76,37 @@ zcta_rent <- zcta_rent %>%
   left_join(zips, by = join_by(GEOID == zip)) %>%
   drop_na(type)
 
-# * Read clean eviction data----
+# Legal Aid Service areas:
+legal_aid_service_areas <- read_csv("data/legal_aid_service_areas.csv") 
+
+legal_aid_service_areas <- legal_aid_service_areas %>%
+  rename(legal_aid_pop = pop_est) %>%
+  mutate(fips = as.integer(str_sub(GEOID, 3, -1)),
+         county = str_sub(NAME, 1, nchar(NAME) - 10)) %>%
+  select(-GEOID, -NAME)
+
+zcta_rent <- zcta_rent %>%
+  left_join(legal_aid_service_areas, by = join_by(county == county))
+
+
+# # Deal with missing service areas (Richmond & Newport News) -- needs to go somwehre? 
+# evictions <- evictions %>%
+#   mutate(legal_aid_service_area = case_when(
+#     county == "Richmond City General District Court" ~ "Central Virginia Legal Aid Society",
+#     county == "Newport News-Civil General District Court" ~ "Legal Aid Society of Eastern Virginia",
+#     TRUE ~ legal_aid_service_area
+#   ))
+
+# * Evictions by zip----
 evictions_zip <- read_csv("data/evictions_zip.csv")
 
-# Join with ZCTA df
 zcta_rent <- zcta_rent %>%
   mutate(GEOID = as.integer(GEOID)) %>%
   left_join(evictions_zip, by = join_by(GEOID == defendant_zip))
+
+zcta_rent %>%
+  group_by(legal_aid_service_area) %>%
+  count()
 
 # * Derive some variables ----
 zcta_rent <- zcta_rent %>%
@@ -117,43 +142,11 @@ zcta_rent <- zcta_rent %>%
       total_filed > 0 ~ (total_immediate / total_filed) * 100,
       TRUE ~ NA)
     )
-
+# Save zip aggregation 
 saveRDS(zcta_rent, "data/zcta_rent.RDS")
 
+# TODO:
 # County level ----
-# county_rent <- get_acs(geography = "county",
-#                        state = "VA",
-#                        variable = vars,
-#                        geometry = TRUE, 
-#                        output = "wide")
-# 
-# county_rent <- county_rent %>%
-#   select(-ends_with("M")) %>%
-#   mutate(fips = str_sub(GEOID, 3, -1)) %>%
-#   rename(total_pop = "B01003_001E",
-#          pov_rate = "S1701_C03_001E",
-#          med_hh_income = "S1901_C01_012E",
-#          rental_units = "B25070_001E",
-#          rent30 = "B25070_007E",
-#          rent35 = "B25070_008E",
-#          rent40 = "B25070_009E",
-#          rent50 = "B25070_010E",
-#          housing_units = "B25002_001E",
-#          med_gross_rent = "B25064_001E",
-#          total_renters = "B25033_008E")
-# 
-# 
-# # Normalize by populations
-# county_rent <- county_rent %>%
-#   filter(housing_units > 0,
-#          total_pop > 0) %>%
-#   mutate(percent_rental_units = (rental_units/housing_units) * 100,
-#          percent_renters = (total_renters/total_pop) * 100,
-#          total_burdened = rent30 + rent35 + rent40 + rent50,
-#          percent_burdened = case_when(
-#            total_renters > 0 ~ (total_burdened/total_renters) * 100,
-#            TRUE ~ NA))
-# 
-# # * Read clean eviction data----
-# evictions_zip <- read_csv("data/evictions_zip.csv")
+# Legal Aid Service Area level ----
+
 

@@ -8,6 +8,23 @@ library(ECtools)
 
 evictions <- read.delim("data/cases_residential_only.txt", sep = ",")
 
+# # Join with service areas
+# legal_aid_service_areas <- read_csv("data/legal_aid_service_areas.csv") %>%
+#   rename(legal_aid_pop = pop_est) %>%
+#   mutate(fips = as.integer(str_sub(GEOID, 3, -1))) %>%
+#   select(-GEOID)
+# 
+# evictions <- evictions %>%
+#   left_join(legal_aid_service_areas, by = join_by(fips== fips))
+# 
+# # Deal with missing service areas (Richmond & Newport News)
+# evictions <- evictions %>%
+#   mutate(legal_aid_service_area = case_when(
+#     county == "Richmond City General District Court" ~ "Central Virginia Legal Aid Society",
+#     county == "Newport News-Civil General District Court" ~ "Legal Aid Society of Eastern Virginia",
+#     TRUE ~ legal_aid_service_area
+#   ))
+
 # Identify if the defendant had an attorney present ----
 evictions$defendant_attorney <- na_if(evictions$defendant_attorney, "")
 
@@ -24,10 +41,8 @@ evictions$plaintiff_non_residential <- identify_non_residential(evictions$plaint
 # Random spot checks:
 # s1 <- sample_n(evictions, 20) %>%
 #   select(plaintiff_name, clean_party_name, plaintiff_non_residential)
-# 
 # s2 <- sample_n(evictions, 20) %>%
 #   select(plaintiff_name, clean_party_name, plaintiff_non_residential)
-# 
 # s3 <- sample_n(evictions, 20) %>%
 #   select(plaintiff_name, clean_party_name, plaintiff_non_residential)
 
@@ -67,8 +82,10 @@ evictions <- evictions %>%
       TRUE ~ "None"))
 
 # Summarize by zip ----
+  
 # Derive some variables: 
-total_filed <- evictions %>% group_by(defendant_zip) %>%
+total_filed <- evictions %>% 
+  group_by(defendant_zip) %>%
   count() %>%
   rename(total_filed = n)
 
@@ -120,3 +137,8 @@ evictions_zip <- total_filed %>%
   left_join(cases_plaintiff_business)
 
 write_csv(evictions_zip, "data/evictions_zip.csv")
+
+# TODO:
+# Summarize by legal aid service area ----
+
+# Summarize by county ----
