@@ -96,7 +96,7 @@ va_localities_sf <- va_localities_sf %>%
   left_join(va_localities, by = "GEOID")
 
 ggplot(va_localities_sf) +
-  geom_sf(aes(fill = legal_aid_service_area), alpha = 1/2) +
+  geom_sf(aes(fill = legal_aid_service_area)) +
   scale_fill_manual(values = my_colors, guide = "none") +
   annotate("label", x = -78, y = 36.75, label = "VA Legal Aid Society", size = 2.5) +
   annotate("label", x = -82, y = 36.8, label = "Southwest VA Legal Aid Society", size = 2.5) +

@@ -32,8 +32,8 @@ ui <- fluidPage(
   titlePanel("Exploring Eviction Geographies"),
   sidebarLayout(
     sidebarPanel(
-      selectInput("var1", "Exploratory Variable:", choices = my_choices),
-      selectInput("var2", "Comparison Variable:", choices = my_choices),
+      selectInput("var1", "Exploratory Variable:", choices = my_choices, selected = my_choices[4]),
+      selectInput("var2", "Comparison Variable:", choices = my_choices, selected = my_choices[2]),
       imageOutput("img")),
     mainPanel(
       tabsetPanel(
@@ -57,7 +57,7 @@ server <- function(input, output, session) {
     list(
       src = file.path("service_areas.png"),
       contentType = "image/png",
-      width = 500
+      width = "100%"
     )
   }, deleteFile = FALSE)
   
@@ -103,15 +103,10 @@ server <- function(input, output, session) {
   
   output$plt <- renderPlotly({
     
-    plt_median_x <- as_tibble(zcta_rent) %>%
-      filter(!is.na(zcta_rent[[input$var1]])) %>%
-      select(percent_renters) %>%
-      summarise(plt_median_x = round(median(zcta_rent[[input$var1]])))
+    plt_median_x <- median(zcta_rent[[input$var1]], na.rm = TRUE)
     
-    plt_median_y <- as_tibble(zcta_rent) %>%
-      filter(!is.na(zcta_rent[[input$var2]])) %>%
-      select(percent_burdened) %>%
-      summarise(plt_median_y = round(median(zcta_rent[[input$var2]])))
+    plt_median_y <- median(zcta_rent[[input$var2]], na.rm = TRUE)
+      
     
     plt_dat <- zcta_rent %>%
       filter(zcta_rent[[input$var1]] > 0,
@@ -120,10 +115,11 @@ server <- function(input, output, session) {
     
     plt <- ggplot(plt_dat, aes(x = .data[[input$var1]], y = .data[[input$var2]], 
                                color = legal_aid_service_area, size = total_pop)) +
+      annotate("text", x = plt_median_x + 3, y = 75, 
+               label = "VA Median", angle = -90,  color = "#808080") +
+      geom_hline(aes(yintercept = plt_median_y), linetype = "dashed", size = 0.25) +
+      geom_vline(aes(xintercept = plt_median_x), linetype = "dashed", size = 0.25) +
       geom_point(alpha = 0.5) +
-      geom_vline(aes(xintercept = as.numeric(plt_median_x[1])), linetype = "dashed", size = 0.25) +
-      annotate("text", x = as.numeric(plt_median_x[1]) + 3, y = 75, label = "VA Median", angle = -90, size = 3, color = "#808080") +
-      geom_hline(aes(yintercept = as.numeric(plt_median_y[1])), linetype = "dashed", size = 0.25) +
       scale_color_manual(values = my_colors) +
       guides(size = "none")
       
