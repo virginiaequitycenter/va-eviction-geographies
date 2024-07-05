@@ -84,10 +84,10 @@ write_csv(va_localities, "data/legal_aid_service_areas.csv")
 my_colors <- c("Southwest Virginia Legal Aid Society" = "#E31A1C",
                "Legal Aid Society of Roanoke Valley" = "#FDBF6F",
                "Blue Ridge Legal Services" = "#1F78B4",
-               "Virginia Legal Aid Society" = "#743089",
+               "Virginia Legal Aid Society" = "#9e6eac",
                "Central Virginia Legal Aid Society" = "#B2DF8A",
                "Legal Services of Northern Virginia" = "#FF7F00",
-               "Legal Aid Works" = "#FB9A99",
+               "Legal Aid Works" = "#fcb2b2",
                "Legal Aid Society of Eastern Virginia" = "#A6CEE3")
 
 va_localities_sf <- counties(state = "51", cb = TRUE, year = 2022)

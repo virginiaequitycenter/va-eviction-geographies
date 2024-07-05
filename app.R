@@ -2,6 +2,7 @@
 
 library(leaflet)
 library(plotly)
+library(reactable)
 library(shiny)
 library(sf)
 library(tidyverse)
@@ -46,7 +47,10 @@ ui <- fluidPage(
           title = "Compare", 
           h4(textOutput("var2", inline = TRUE)),
           plotlyOutput("plt")),
-        tabPanel("Table", "download button")
+        tabPanel(
+          title = "Table",
+          downloadButton("downloadData", "Download"),
+          reactableOutput("tbl"))
     ))))
 
 # Server ----
@@ -55,14 +59,15 @@ server <- function(input, output, session) {
   
   output$img <- renderImage({
     list(
-      src = file.path("service_areas.png"),
+      src = file.path("service_areas_full.png"),
       contentType = "image/png",
       width = "100%"
     )
   }, deleteFile = FALSE)
   
   
-  pal <- colorNumeric(palette = "viridis", domain = NULL, reverse = TRUE)
+  pal <- colorNumeric(palette = "viridis", domain = NULL, reverse = TRUE,
+                      na.color = NA)
   
   output$var1 <- renderText({
     as.character(names(my_choices[my_choices == input$var1]))
@@ -114,19 +119,110 @@ server <- function(input, output, session) {
              !is.na(legal_aid_service_area))
     
     plt <- ggplot(plt_dat, aes(x = .data[[input$var1]], y = .data[[input$var2]], 
-                               color = legal_aid_service_area, size = total_pop)) +
-      annotate("text", x = plt_median_x + 3, y = 75, 
-               label = "VA Median", angle = -90,  color = "#808080") +
-      geom_hline(aes(yintercept = plt_median_y), linetype = "dashed", size = 0.25) +
-      geom_vline(aes(xintercept = plt_median_x), linetype = "dashed", size = 0.25) +
+                               color = legal_aid_service_area, size = total_pop,
+                               text = paste0("Zipcode: ", GEOID, "<br>", 
+                                            "Region: ", primary_city, ", ", county, "<br>",
+                                            "Estimated Population: ", total_pop, "<br>",
+                                            names(my_choices[my_choices == input$var1]), ": ", round(.data[[input$var1]]), "%", "<br>",
+                                            names(my_choices[my_choices == input$var2]), ": ", round(.data[[input$var2]]), "%", "<br>"))) +
+      # annotate("text", x = 80, y = plt_median_y - 3,
+      #          label = "State Median",  color = "#808080") +
+      geom_hline(aes(yintercept = plt_median_y), linetype = "dashed", linewidth = 0.1) +
+      geom_vline(aes(xintercept = plt_median_x), linetype = "dashed", linewidth = 0.1) +
       geom_point(alpha = 0.5) +
       scale_color_manual(values = my_colors) +
-      guides(size = "none")
+      scale_y_continuous(labels = function(x) paste0(x, "%")) +
+      scale_x_continuous(labels = function(x) paste0(x, "%")) +
+      guides(size = "none") +
+      labs(x = names(my_choices[my_choices == input$var1]),
+           y = names(my_choices[my_choices == input$var2]),
+           color = "Legal Aid Service Area")
       
-      ggplotly(plt)
-
+      ggplotly(plt, tooltip = c("text"))
     
   })
+  
+  data <- reactive({
+    zcta_rent %>%
+      as_tibble() %>%
+      select(GEOID, primary_city, county, legal_aid_service_area,total_pop, total_renters, 
+             total_burdened, med_gross_rent, med_hh_income,median_principal, total_filed, 
+             total_default, total_immediate, n_d_attorney,
+             cases_plaintiff_business) %>%
+      rename("Zipcode" = GEOID,
+             "City" = primary_city,
+             "County" = county,
+             "Service Area" = legal_aid_service_area,
+             "Total Pop." = total_pop,
+             "Rental Pop." = total_renters,
+             "Cost-Burdened Renters" = total_burdened,
+             "Median Rent" = med_gross_rent,
+             "Median Household Income" = med_hh_income,
+             "Median Case Amount" = median_principal,
+             "Evictions Filed" = total_filed,
+             "Default Judgments" = total_default,
+             "Immediate Possession" = total_immediate,
+             "Cases with Defendent Attorney" = n_d_attorney,
+             "Cases Filed by Businesses" = cases_plaintiff_business)
+
+      
+  })
+  
+  output$downloadData <- downloadHandler(
+    filename = function() {
+      # Use the selected dataset as the suggested file name
+      paste0("evictions_zipcode_", Sys.Date(), ".csv")
+    },
+    content = function(file) {
+      # Write the dataset to the `file` that will be downloaded
+      write.csv(data(), file)
+    }
+  )
+  
+  output$tbl <- renderReactable(
+    
+    zip_tbl <- zcta_rent %>%
+      as_tibble() %>%
+      select(GEOID, primary_city, county, legal_aid_service_area,total_pop, total_renters, 
+             total_burdened, med_gross_rent, med_hh_income,median_principal, total_filed, 
+             total_default, total_immediate, n_d_attorney,
+             cases_plaintiff_business) %>%
+      rename("Zipcode" = GEOID,
+             "City" = primary_city,
+             "County" = county,
+             "Service Area" = legal_aid_service_area,
+             "Total Pop." = total_pop,
+             "Rental Pop." = total_renters,
+             "Cost-Burdened Renters" = total_burdened,
+             "Median Rent" = med_gross_rent,
+             "Median Household Income" = med_hh_income,
+             "Median Case Amount" = median_principal,
+             "Evictions Filed" = total_filed,
+             "Default Judgments" = total_default,
+             "Immediate Possession" = total_immediate,
+             "Cases with Defendent Attorney" = n_d_attorney,
+             "Cases Filed by Businesses" = cases_plaintiff_business) %>%
+      reactable(
+        defaultColDef = colDef(
+          align = "center",
+          defaultSortOrder = "desc",
+          headerStyle = list(background = "#f7f7f8"),
+          format = colFormat(separators = TRUE)),
+        defaultSorted = list(`Rental Pop.` = "desc"),
+        filterable = TRUE,
+        searchable = TRUE,
+        columns = list(
+        `Zipcode` = colDef(format = colFormat(separators = FALSE)),
+        `Median Rent` = colDef(format = colFormat(prefix = "$", digits = 2)),
+        `Median Household Income` = colDef(format = colFormat(prefix = "$", digits = 2)),
+        `Median Case Amount` = colDef(format = colFormat(prefix = "$", digits = 2))),
+        bordered = TRUE,
+        highlight = TRUE,
+        defaultPageSize = 5
+    
+    
+  )
+  )
   
   
   
