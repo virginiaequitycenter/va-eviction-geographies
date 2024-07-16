@@ -27,6 +27,8 @@ my_colors <- c("Southwest Virginia Legal Aid Society" = "#E31A1C",
 
 zcta_rent <- readRDS("data/zcta_rent.RDS")
 
+areas_sf <- readRDS("data/areas_sf.RDS")
+
 # UI ----
 
 ui <- fluidPage(
@@ -91,12 +93,23 @@ server <- function(input, output, session) {
                   highlightOptions = highlightOptions(
                     fillOpacity = 1,
                     bringToFront = FALSE)) %>%
+      addPolygons(data = areas_sf %>% st_transform(crs = 4326),
+                  fillColor = "transparent",
+                  color = "blue", 
+                  fillOpacity = 0.8,
+                  group="Legal Aid Service Area",
+                  popup=NULL,
+                  weight = 1) %>%
       addLegend("topright",
                 pal = pal,
                 values = ~ zcta_rent[[input$var1]],
                 title = names(my_choices[my_choices == input$var1]),
                 labFormat = labelFormat(suffix = "%"),
-                opacity = 1)
+                opacity = 1) %>%
+      addLayersControl(
+        overlayGroups =c ("Legal Aid Service Area"),
+        options = layersControlOptions(collapsed=FALSE)
+      )
   })
   
   output$var2 <- renderText({
