@@ -1,4 +1,3 @@
-
 # Clean eviction data and prepare for analysis
 
 # Setup ----
@@ -81,174 +80,89 @@ evictions <- evictions %>%
       grepl("Other|Transfer", judgment) ~ "Other",
       TRUE ~ "None"))
 
-# Summarize by zip ----
+# Summarize by geography ----
+summarize_evictions <- function(df, grouper) {
   
-# Derive some variables: 
-total_filed <- evictions %>% 
-  group_by(defendant_zip) %>%
-  count() %>%
-  rename(total_filed = n)
+  #Total cases filed per group
+  total_filed <- df %>% 
+    group_by({{ grouper }}) %>%
+    count() %>%
+    rename(total_filed = n)
+  assign("total_filed", total_filed, .GlobalEnv)
+  
+  #Total default cases per group
+  total_default <- df %>% 
+    filter(default == TRUE) %>%
+    group_by({{ grouper }}) %>%
+    count() %>%
+    rename(total_default = n)
+  assign("total_default", total_default, .GlobalEnv)
+  
+  #Total plaintiff won cases per group
+  total_plaintiff_won <- df %>% 
+    filter(judgment_clean == "Plaintiff") %>%
+    group_by({{ grouper }}) %>%
+    count() %>%
+    rename(total_plaintiff_won = n)
+  assign("total_plaintiff_won", total_plaintiff_won, .GlobalEnv)
+  
+  #Total cases with immediate posession per group 
+  total_immediate <- df %>%
+    filter(possession == "Immediate") %>%
+    group_by({{ grouper }}) %>%
+    count() %>%
+    rename(total_immediate = n)
+  assign("total_immediate", total_immediate, .GlobalEnv)
+  
+  #Median principal amount per group 
+  median_principal <- df %>%
+    group_by({{ grouper }}) %>%
+    summarise(median_principal = median(principal_amount, na.rm = TRUE))
+  assign("median_principal", median_principal, .GlobalEnv)
+  
+  #Number of cases where the defendant had an attorney 
+  n_d_attorney <- df %>%
+    filter(d_attorney_present == TRUE) %>%
+    group_by({{ grouper }}) %>%
+    count() %>%
+    rename(n_d_attorney = n)
+  assign("n_d_attorney", n_d_attorney, .GlobalEnv)
+  
+  #Number of cases with non-person evictors 
+  cases_plaintiff_business <- df %>%
+    filter(plaintiff_non_residential == TRUE) %>%
+    group_by({{ grouper }}) %>%
+    count() %>%
+    rename(cases_plaintiff_business = n)
+  assign("cases_plaintiff_business", cases_plaintiff_business, .GlobalEnv)
+  
+  # Join by geography:
+  evictions_summary <- total_filed %>%
+    left_join(total_default) %>%
+    left_join(total_plaintiff_won) %>%
+    left_join(total_immediate) %>%
+    left_join(median_principal) %>%
+    left_join(n_d_attorney) %>%
+    left_join(cases_plaintiff_business)
+  assign("evictions_summary", evictions_summary, .GlobalEnv)
+}
 
-total_default <- evictions %>% 
-  filter(default == TRUE) %>%
-  group_by(defendant_zip) %>%
-  count() %>%
-  rename(total_default = n)
+# Zip code ----
+summarize_evictions(evictions, defendant_zip)
 
-total_plaintiff_won <- evictions %>% 
-  filter(judgment_clean == "Plaintiff") %>%
-  group_by(defendant_zip) %>%
-  count() %>%
-  rename(total_plaintiff_won = n)
+write_csv(evictions_summary, "data/evictions_zip.csv")
 
-total_immediate <- evictions %>%
-  filter(possession == "Immediate") %>%
-  group_by(defendant_zip) %>%
-  count() %>%
-  rename(total_immediate = n)
+rm(total_filed, total_default, total_plaintiff_won, total_immediate, median_principal, n_d_attorney, cases_plaintiff_business)
 
-median_principal <- evictions %>%
-  group_by(defendant_zip) %>%
-  summarise(median_principal = median(principal_amount, na.rm = TRUE))
+# County ----
+summarize_evictions(evictions, locality)
 
-# Number of cases where the defendant had an attorney 
-n_d_attorney <- evictions %>%
-  filter(d_attorney_present == TRUE) %>%
-  group_by(defendant_zip) %>%
-  count() %>%
-  rename(n_d_attorney = n)
+write_csv(evictions_summary, "data/evictions_county.csv")
 
-# Number of cases with non-person evictors 
-cases_plaintiff_business <- evictions %>%
-  filter(plaintiff_non_residential == TRUE) %>%
-  group_by(defendant_zip) %>%
-  count() %>%
-  rename(cases_plaintiff_business = n)
+rm(total_filed, total_default, total_plaintiff_won, total_immediate, median_principal, n_d_attorney, cases_plaintiff_business)
 
-# Question: how should we handle NA values? Convert to zero?
+# Legal Aid Service Area ----
+summarize_evictions(evictions, legal_aid_service_area)
 
-# Join by zip geography:
-evictions_zip <- total_filed %>%
-  left_join(total_default) %>%
-  left_join(total_plaintiff_won) %>%
-  left_join(total_immediate) %>%
-  left_join(median_principal) %>%
-  left_join(n_d_attorney) %>%
-  left_join(cases_plaintiff_business)
-
-write_csv(evictions_zip, "data/evictions_zip.csv")
-
-# Summarize by county ----
-
-# Derive some variables: 
-total_filed_c <- evictions %>% 
-  group_by(locality) %>%
-  count() %>%
-  rename(total_filed_c = n)
-
-total_default_c <- evictions %>% 
-  filter(default == TRUE) %>%
-  group_by(locality) %>%
-  count() %>%
-  rename(total_default_c = n)
-
-total_plaintiff_won_c <- evictions %>% 
-  filter(judgment_clean == "Plaintiff") %>%
-  group_by(locality) %>%
-  count() %>%
-  rename(total_plaintiff_won_c = n)
-
-total_immediate_c <- evictions %>%
-  filter(possession == "Immediate") %>%
-  group_by(locality) %>%
-  count() %>%
-  rename(total_immediate_c = n)
-
-median_principal_c <- evictions %>%
-  group_by(locality) %>%
-  summarise(median_principal_c = median(principal_amount, na.rm = TRUE))
-
-# Number of cases where the defendant had an attorney 
-n_d_attorney_c <- evictions %>%
-  filter(d_attorney_present == TRUE) %>%
-  group_by(locality) %>%
-  count() %>%
-  rename(n_d_attorney_c = n)
-
-# Number of cases with non-person evictors 
-cases_plaintiff_business_c <- evictions %>%
-  filter(plaintiff_non_residential == TRUE) %>%
-  group_by(locality) %>%
-  count() %>%
-  rename(cases_plaintiff_business_c = n)
-
-# Question: how should we handle NA values? Convert to zero?
-
-# Join by county geography:
-evictions_county <- total_filed_c %>%
-  left_join(total_default_c) %>%
-  left_join(total_plaintiff_won_c) %>%
-  left_join(total_immediate_c) %>%
-  left_join(median_principal_c) %>%
-  left_join(n_d_attorney_c) %>%
-  left_join(cases_plaintiff_business_c)
-
-write_csv(evictions_county, "data/evictions_county.csv")
-
-# Summarize by legal aid service area ----
-
-# Derive some variables: 
-total_filed_sa <- evictions %>% 
-  group_by(legal_aid_service_area) %>%
-  count() %>%
-  rename(total_filed_sa = n)
-
-total_default_sa <- evictions %>% 
-  filter(default == TRUE) %>%
-  group_by(legal_aid_service_area) %>%
-  count() %>%
-  rename(total_default_sa = n)
-
-total_plaintiff_won_sa <- evictions %>% 
-  filter(judgment_clean == "Plaintiff") %>%
-  group_by(legal_aid_service_area) %>%
-  count() %>%
-  rename(total_plaintiff_won_sa = n)
-
-total_immediate_sa <- evictions %>%
-  filter(possession == "Immediate") %>%
-  group_by(legal_aid_service_area) %>%
-  count() %>%
-  rename(total_immediate_sa = n)
-
-median_principal_sa <- evictions %>%
-  group_by(legal_aid_service_area) %>%
-  summarise(median_principal_sa = median(principal_amount, na.rm = TRUE))
-
-# Number of cases where the defendant had an attorney 
-n_d_attorney_sa <- evictions %>%
-  filter(d_attorney_present == TRUE) %>%
-  group_by(legal_aid_service_area) %>%
-  count() %>%
-  rename(n_d_attorney_sa = n)
-
-# Number of cases with non-person evictors 
-cases_plaintiff_business_sa <- evictions %>%
-  filter(plaintiff_non_residential == TRUE) %>%
-  group_by(legal_aid_service_area) %>%
-  count() %>%
-  rename(cases_plaintiff_business_sa = n)
-
-# Question: how should we handle NA values? Convert to zero?
-
-# Join by legal aid service area geography:
-evictions_servicearea <- total_filed_sa %>%
-  left_join(total_default_sa) %>%
-  left_join(total_plaintiff_won_sa) %>%
-  left_join(total_immediate_sa) %>%
-  left_join(median_principal_sa) %>%
-  left_join(n_d_attorney_sa) %>%
-  left_join(cases_plaintiff_business_sa)
-
-write_csv(evictions_servicearea, "data/evictions_servicearea.csv")
+write_csv(evictions_summary, "data/evictions_servicearea.csv")
 

@@ -1,4 +1,4 @@
-locality,total_filed_c,total_default_c,total_plaintiff_won_c,total_immediate_c,median_principal_c,n_d_attorney_c,cases_plaintiff_business_c
+locality,total_filed,total_default,total_plaintiff_won,total_immediate,median_principal,n_d_attorney,cases_plaintiff_business
 Accomack County,922,382,573,218,2115,7,457
 Albemarle County,5363,1840,2415,1669,2012.915,24,4738
 Alexandria City,19578,6123,8284,5982,3425,120,18257
