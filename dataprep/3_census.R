@@ -1,4 +1,3 @@
-
 # Exploring Eviction Geographies 
 # Background: https://docs.google.com/document/d/1YQzIEelpFLTj7D2t7xB0-F6GVqapQn4lv1I0bGxAUng/edit
 
@@ -7,7 +6,43 @@ library(leaflet)
 library(sf)
 library(tidyverse)
 library(tidycensus)
+library(tigris)
+options(tigris_use_cache = TRUE)
 library(zctaCrosswalk)
+
+calculate_percentages <- . %>%
+  mutate(
+  # total filed per rental unit
+  filed_unit = case_when( 
+    rental_units > 0 ~ (total_filed/rental_units) * 100,  
+    TRUE ~ NA),
+  # total filed per renter
+  filed_renter = case_when(
+    total_renters > 0 ~ (total_filed/total_renters) * 100,
+    TRUE ~ NA),
+  # total filed per total pop
+  filed_pop = (total_filed/total_pop) * 100,
+  # percent default
+  percent_default = case_when(
+    total_filed > 0 ~ (total_default/total_filed) * 100,
+    TRUE ~ NA),
+  # percent plaintiff won 
+  percent_plaintiff_won = case_when(
+    total_filed > 0 ~ (total_plaintiff_won/total_filed) * 100,
+    TRUE ~ NA),
+  # percent where defendant had an attorney present
+  percent_d_attorney = case_when(
+    total_filed > 0 ~ (n_d_attorney / total_filed) * 100,
+    TRUE ~ NA),
+  # percent filed by non-person plaintiffs
+  percent_plaintiff_business= case_when(
+    total_filed > 0 ~ (cases_plaintiff_business / total_filed) * 100, 
+    TRUE ~ NA),
+  # percent of cases where possession was immediate 
+  percent_immediate = case_when(
+    total_filed > 0 ~ (total_immediate / total_filed) * 100,
+    TRUE ~ NA)
+)
 
 # Supplemental info ----
 # Zip codes:
@@ -79,7 +114,7 @@ zcta_rent <- zcta_rent %>%
          total_burdened = rent30 + rent35 + rent40 + rent50,
          percent_burdened = case_when(
            total_renters > 0 ~ (total_burdened/total_renters) * 100,
-           TRUE ~ NA))
+           TRUE ~ 0))
 
 # Join with supplemental zip and service area info 
 zcta_rent <- zcta_rent %>%
@@ -94,46 +129,17 @@ zcta_rent <- zcta_rent %>%
   mutate(GEOID = as.integer(GEOID)) %>%
   left_join(evictions_zip, by = join_by(GEOID == defendant_zip))
 
-# Missing zips?
+# Missing zips? Cities -- included in relevant county data
 
 zcta_rent %>%
+  select(-geometry) %>%
   group_by(legal_aid_service_area) %>%
   count()
 
-# *Derive some variables ----
+# *Calculate percentages ----
 zcta_rent <- zcta_rent %>%
-  mutate(
-    # total filed per rental unit
-    filed_unit = case_when( 
-      rental_units > 0 ~ (total_filed/rental_units) * 100,  
-      TRUE ~ NA),
-    # total filed per renter
-    filed_renter = case_when(
-      total_renters > 0 ~ (total_filed/total_renters) * 100,
-      TRUE ~ NA),
-    # total filed per total pop
-    filed_pop = (total_filed/total_pop) * 100,
-    # percent default
-    percent_default = case_when(
-      total_filed > 0 ~ (total_default/total_filed) * 100,
-      TRUE ~ NA),
-    # percent plaintiff won 
-    percent_plaintiff_won = case_when(
-      total_filed > 0 ~ (total_plaintiff_won/total_filed) * 100,
-      TRUE ~ NA),
-    # percent where defendant had an attorney present
-    percent_d_attorney = case_when(
-      total_filed > 0 ~ (n_d_attorney / total_filed) * 100,
-      TRUE ~ NA),
-    # percent filed by non-person plaintiffs
-    percent_plaintiff_business= case_when(
-      total_filed > 0 ~ (cases_plaintiff_business / total_filed) * 100, 
-      TRUE ~ NA),
-    # percent of cases where possession was immediate 
-    percent_immediate = case_when(
-      total_filed > 0 ~ (total_immediate / total_filed) * 100,
-      TRUE ~ NA)
-    )
+  calculate_percentages()
+  
 # Save zip aggregation 
 saveRDS(zcta_rent, "data/zcta_rent.RDS")
 
@@ -149,7 +155,7 @@ county_rent <- get_acs(geography = "county",
 county_rent <- county_rent %>%
   select(-ends_with("M")) %>%
   mutate(GEOID = as.numeric(GEOID),
-         NAME = gsub("(.*),.*", "\\1", NAME)) %>%
+         NAME = str_to_title(gsub("(.*),.*", "\\1", NAME))) %>%
   rename(county = "NAME",
          total_pop = "B01003_001E",
          pov_rate = "S1701_C03_001E",
@@ -163,7 +169,7 @@ county_rent <- county_rent %>%
          med_gross_rent = "B25064_001E",
          total_renters = "B25033_008E")
 
-# Normalize by populations - could eventually be written as function
+# Normalize by populations
 county_rent <- county_rent %>%
   filter(housing_units > 0,
          total_pop > 0) %>%
@@ -176,54 +182,44 @@ county_rent <- county_rent %>%
 
 # Join with legal aid service area
 county_rent <- county_rent %>%
-  left_join(legal_aid_service_areas, by = join_by(county == county))
+  left_join(legal_aid_service_areas, by = join_by(county == locality))
+
+tmp_lasa <- county_rent
 
 # *Evictions by county----
 evictions_county <- read_csv("data/evictions_county.csv")
 
-# join
+# Join
+county_rent <- county_rent %>%
+  left_join(evictions_county, by = join_by(county == locality))
 
-# *Derive some variables ----
-zcta_rent <- zcta_rent %>%
-  mutate(
-    # total filed per rental unit
-    filed_unit = case_when( 
-      rental_units > 0 ~ (total_filed/rental_units) * 100,  
-      TRUE ~ NA),
-    # total filed per renter
-    filed_renter = case_when(
-      total_renters > 0 ~ (total_filed/total_renters) * 100,
-      TRUE ~ NA),
-    # total filed per total pop
-    filed_pop = (total_filed/total_pop) * 100,
-    # percent default
-    percent_default = case_when(
-      total_filed > 0 ~ (total_default/total_filed) * 100,
-      TRUE ~ NA),
-    # percent plaintiff won 
-    percent_plaintiff_won = case_when(
-      total_filed > 0 ~ (total_plaintiff_won/total_filed) * 100,
-      TRUE ~ NA),
-    # percent where defendant had an attorney present
-    percent_d_attorney = case_when(
-      total_filed > 0 ~ (n_d_attorney / total_filed) * 100,
-      TRUE ~ NA),
-    # percent filed by non-person plaintiffs
-    percent_plaintiff_business= case_when(
-      total_filed > 0 ~ (cases_plaintiff_business / total_filed) * 100, 
-      TRUE ~ NA),
-    # percent of cases where possession was immediate 
-    percent_immediate = case_when(
-      total_filed > 0 ~ (total_immediate / total_filed) * 100,
-      TRUE ~ NA)
-  )
-# Save zip aggregation 
-saveRDS(zcta_rent, "data/zcta_rent.RDS")
+# *Calculate percentages ----
+county_rent <- county_rent %>%
+  calculate_percentages()
 
-
-
-
+# Save county aggregation 
+saveRDS(county_rent, "data/county_rent.RDS")
 
 # Legal Aid Service Area level ----
 
+# Calculate totals
+lasa_rent <- tmp_lasa %>%
+  group_by(legal_aid_service_area) %>%
+  summarise(across(c(total_pop, rental_units, housing_units, med_gross_rent, 
+                     total_renters, med_hh_income, total_burdened), sum),
+            avg_pov_rate = mean(pov_rate),
+            geometry = st_union(geometry))
 
+# *Evictions by Service Area ----
+evictions_servicearea <- read_csv("data/evictions_servicearea.csv")
+
+# Join
+lasa_rent <- lasa_rent %>%
+  left_join(evictions_servicearea)
+
+# *Calculate Percentages ----
+lasa_rent <- lasa_rent %>%
+  calculate_percentages()
+
+# Save legal aid service area aggregation 
+saveRDS(lasa_rent, "data/lasa_rent.RDS")

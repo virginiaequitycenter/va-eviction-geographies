@@ -25,9 +25,10 @@ my_colors <- c("Southwest Virginia Legal Aid Society" = "#E31A1C",
                "Legal Aid Works" = "#FB9A99",
                "Legal Aid Society of Eastern Virginia" = "#A6CEE3")
 
-zcta_rent <- readRDS("data/zcta_rent.RDS")
-
 areas_sf <- readRDS("data/areas_sf.RDS")
+zcta_rent <- readRDS("data/zcta_rent.RDS")
+county_rent <- readRDS("data/county_rent.RDS")
+lasa_rent <- readRDS("data/lasa_rent.RDS")
 
 # UI ----
 
@@ -35,6 +36,7 @@ ui <- fluidPage(
   titlePanel("Exploring Eviction Geographies"),
   sidebarLayout(
     sidebarPanel(
+      selectInput("geo", "Geographic Level", choices = c("Zipcode", "County", "Legal Aid Service Area"), selected = "County"),
       selectInput("var1", "Exploratory Variable:", choices = my_choices, selected = my_choices[4]),
       selectInput("var2", "Comparison Variable:", choices = my_choices, selected = my_choices[2]),
       imageOutput("img")),
@@ -58,6 +60,17 @@ ui <- fluidPage(
 # Server ----
 
 server <- function(input, output, session) {
+  
+  rv <- reactiveValues()
+  observeEvent(input$geo, {
+    if (input$geo == "Zipcode") {
+      rv$dat = zcta_rent
+    } else if (input$geo == "County") {
+      rv$dat = county_rent
+    } else {
+      rv$dat = lasa_rent
+    }
+  })
   
   output$img <- renderImage({
     list(
