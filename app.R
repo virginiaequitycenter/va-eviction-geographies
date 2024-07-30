@@ -7,14 +7,19 @@ library(shiny)
 library(sf)
 library(tidyverse)
 
-my_choices = c("Rental Population" = "percent_renters",
-               "Cost-Burdened Renters" = "percent_burdened",
-               "Poverty Rate" = "pov_rate",
-               "Eviction Rate" = "filed_pop",
-               "Non-Person Filing Rate" = "percent_plaintiff_business",
-               "Rate of Default Judgments" = "percent_default",
-               "Rate of Immediate Possession" = "percent_immediate",
-               "Defendant Attorney Present" = "percent_d_attorney")
+my_choices = list(
+  "People" = list(
+    "Rental Population" = "percent_renters",
+    "Cost-Burdened Renters" = "percent_burdened", 
+    "Poverty Rate" = "pov_rate"),
+  "Eviction" = list(
+    "Eviction Rate" = "filed_pop",
+    "Non-Person Filing Rate" = "percent_plaintiff_business",
+    "Rate of Default Judgments" = "percent_default",
+    "Rate of Immediate Possession" = "percent_immediate",
+    "Defendant Attorney Present" = "percent_d_attorney"))
+
+my_choices_flat = flatten(my_choices)
 
 my_colors <- c("Southwest Virginia Legal Aid Society" = "#E31A1C",
                "Legal Aid Society of Roanoke Valley" = "#FDBF6F",
@@ -42,8 +47,8 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       selectInput("geo", "Geographic Grouping:", choices = c("Zipcode", "County", "Legal Aid Service Area"), selected = "County"),
-      selectInput("var1", "Exploratory Variable:", choices = my_choices, selected = my_choices[4]),
-      selectInput("var2", "Comparison Variable:", choices = my_choices, selected = my_choices[2]),
+      selectInput("var1", "Exploratory Variable:", choices = my_choices, selected = my_choices[[2]][1]),
+      selectInput("var2", "Comparison Variable:", choices = my_choices, selected = my_choices[[1]][2]),
       imageOutput("img")),
     mainPanel(
       tabsetPanel(
@@ -91,7 +96,7 @@ server <- function(input, output, session) {
                       na.color = NA)
   
   output$var1 <- renderText({
-    as.character(names(my_choices[my_choices == input$var1]))
+    as.character(names(my_choices_flat[my_choices_flat == input$var1]))
   })
   
   output$geo <- renderText({
@@ -110,7 +115,7 @@ server <- function(input, output, session) {
                   color = "black",
                   fillColor = ~pal(rv$dat[[input$var1]]),
                   fillOpacity = 0.5,
-                  popup = paste0(as.character(names(my_choices[my_choices == input$var1])), ": ", round(rv$dat[[input$var1]]), "%", "<br>",
+                  popup = paste0(as.character(names(my_choices_flat[my_choices_flat == input$var1])), ": ", round(rv$dat[[input$var1]]), "%", "<br>",
                                  "Total Population: ", scales::comma(rv$dat[["total_pop"]]), "<br>",
                                  "Region: ", rv$dat[["locality"]]),
                   highlightOptions = highlightOptions(
@@ -119,20 +124,16 @@ server <- function(input, output, session) {
       addLegend("topright",
                 pal = pal,
                 values = ~ rv$dat[[input$var1]],
-                title = names(my_choices[my_choices == input$var1]),
+                title = names(my_choices_flat[my_choices_flat == input$var1]),
                 labFormat = labelFormat(suffix = "%"),
                 opacity = 1) 
   })
   
   output$var2 <- renderText({
      
-    paste0(as.character(names(my_choices[my_choices == input$var1])), " compared to ", 
-           as.character(names(my_choices[my_choices == input$var2])))
+    paste0(as.character(names(my_choices_flat[my_choices_flat == input$var1])), " compared to ", 
+           as.character(names(my_choices_flat[my_choices_flat == input$var2])))
     
-  })
-  
-  output$geo <- renderText({
-    paste0("Grouped by ", tolower(input$geo))
   })
   
   output$plt <- renderPlotly({
@@ -151,10 +152,8 @@ server <- function(input, output, session) {
                                color = legal_aid_service_area, size = total_pop,
                                text = paste0("Region: ", locality, "<br>",
                                             "Estimated Population: ", scales::comma(total_pop), "<br>",
-                                            names(my_choices[my_choices == input$var1]), ": ", round(.data[[input$var1]]), "%", "<br>",
-                                            names(my_choices[my_choices == input$var2]), ": ", round(.data[[input$var2]]), "%", "<br>"))) +
-      # annotate("text", x = 80, y = plt_median_y - 3,
-      #          label = "State Median",  color = "#808080") +
+                                            names(my_choices_flat[my_choices_flat == input$var1]), ": ", round(.data[[input$var1]]), "%", "<br>",
+                                            names(my_choices_flat[my_choices_flat == input$var2]), ": ", round(.data[[input$var2]]), "%", "<br>"))) +
       geom_hline(aes(yintercept = plt_median_y), linetype = "dashed", linewidth = 0.1) +
       geom_vline(aes(xintercept = plt_median_x), linetype = "dashed", linewidth = 0.1) +
       geom_point(alpha = 0.5) +
@@ -162,8 +161,8 @@ server <- function(input, output, session) {
       scale_y_continuous(labels = function(x) paste0(x, "%")) +
       scale_x_continuous(labels = function(x) paste0(x, "%")) +
       guides(size = "none") +
-      labs(x = names(my_choices[my_choices == input$var1]),
-           y = names(my_choices[my_choices == input$var2]),
+      labs(x = names(my_choices_flat[my_choices_flat == input$var1]),
+           y = names(my_choices_flat[my_choices_flat == input$var2]),
            color = "Legal Aid Service Area")
       
       ggplotly(plt, tooltip = c("text"))
