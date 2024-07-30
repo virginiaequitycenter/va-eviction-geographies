@@ -26,9 +26,14 @@ my_colors <- c("Southwest Virginia Legal Aid Society" = "#E31A1C",
                "Legal Aid Society of Eastern Virginia" = "#A6CEE3")
 
 areas_sf <- readRDS("data/areas_sf.RDS")
-zcta_rent <- readRDS("data/zcta_rent.RDS")
+zcta_rent <- readRDS("data/zcta_rent.RDS") 
 county_rent <- readRDS("data/county_rent.RDS")
 lasa_rent <- readRDS("data/lasa_rent.RDS")
+
+# Fix names - for popups
+zcta_rent <- zcta_rent %>% unite("locality", c("GEOID", "primary_city", "county"), remove = F, sep = ", ")
+county_rent$locality <- county_rent$county
+lasa_rent$locality <- lasa_rent$legal_aid_service_area
 
 # UI ----
 
@@ -36,7 +41,7 @@ ui <- fluidPage(
   titlePanel("Exploring Eviction Geographies"),
   sidebarLayout(
     sidebarPanel(
-      selectInput("geo", "Geographic Level", choices = c("Zipcode", "County", "Legal Aid Service Area"), selected = "County"),
+      selectInput("geo", "Geographic Grouping:", choices = c("Zipcode", "County", "Legal Aid Service Area"), selected = "County"),
       selectInput("var1", "Exploratory Variable:", choices = my_choices, selected = my_choices[4]),
       selectInput("var2", "Comparison Variable:", choices = my_choices, selected = my_choices[2]),
       imageOutput("img")),
@@ -53,6 +58,7 @@ ui <- fluidPage(
           plotlyOutput("plt")),
         tabPanel(
           title = "Table",
+          h6(textOutput("geo", inline = TRUE)),
           downloadButton("downloadData", "Download"),
           reactableOutput("tbl"))
     ))))
@@ -88,8 +94,13 @@ server <- function(input, output, session) {
     as.character(names(my_choices[my_choices == input$var1]))
   })
   
+  output$geo <- renderText({
+    paste0("Grouped by ", tolower(input$geo))
+  })
+  
   output$map <- renderLeaflet({
-    zcta_rent %>%
+  
+    rv$dat %>%
       st_transform(crs = 4326) %>%
       leaflet() %>%
       addProviderTiles(providers$CartoDB.Positron) %>%  
@@ -97,32 +108,20 @@ server <- function(input, output, session) {
                   weight = 0.5,
                   opacity = 1,
                   color = "black",
-                  fillColor = ~pal(zcta_rent[[input$var1]]),
+                  fillColor = ~pal(rv$dat[[input$var1]]),
                   fillOpacity = 0.5,
-                  popup = paste0(as.character(names(my_choices[my_choices == input$var1])), ": ", round(zcta_rent[[input$var1]]), "%", "<br>", 
-                                 "Total Population ", zcta_rent$total_pop, "<br>",
-                                 "Zipcode: ", zcta_rent$GEOID, "<br>",
-                                 "Region: ", zcta_rent$primary_city, ", ", zcta_rent$county),
+                  popup = paste0(as.character(names(my_choices[my_choices == input$var1])), ": ", round(rv$dat[[input$var1]]), "%", "<br>",
+                                 "Total Population: ", scales::comma(rv$dat[["total_pop"]]), "<br>",
+                                 "Region: ", rv$dat[["locality"]]),
                   highlightOptions = highlightOptions(
                     fillOpacity = 1,
                     bringToFront = FALSE)) %>%
-      addPolygons(data = areas_sf %>% st_transform(crs = 4326),
-                  fillColor = "transparent",
-                  color = "blue", 
-                  fillOpacity = 0.8,
-                  group="Legal Aid Service Area",
-                  popup=NULL,
-                  weight = 1) %>%
       addLegend("topright",
                 pal = pal,
-                values = ~ zcta_rent[[input$var1]],
+                values = ~ rv$dat[[input$var1]],
                 title = names(my_choices[my_choices == input$var1]),
                 labFormat = labelFormat(suffix = "%"),
-                opacity = 1) %>%
-      addLayersControl(
-        overlayGroups =c ("Legal Aid Service Area"),
-        options = layersControlOptions(collapsed=FALSE)
-      )
+                opacity = 1) 
   })
   
   output$var2 <- renderText({
@@ -132,23 +131,26 @@ server <- function(input, output, session) {
     
   })
   
+  output$geo <- renderText({
+    paste0("Grouped by ", tolower(input$geo))
+  })
+  
   output$plt <- renderPlotly({
     
-    plt_median_x <- median(zcta_rent[[input$var1]], na.rm = TRUE)
+    plt_median_x <- median(rv$dat[[input$var1]], na.rm = TRUE)
     
-    plt_median_y <- median(zcta_rent[[input$var2]], na.rm = TRUE)
+    plt_median_y <- median(rv$dat[[input$var2]], na.rm = TRUE)
       
     
-    plt_dat <- zcta_rent %>%
-      filter(zcta_rent[[input$var1]] > 0,
-             zcta_rent[[input$var2]] > 0,
+    plt_dat <- rv$dat %>%
+      filter(rv$dat[[input$var1]] > 0,
+             rv$dat[[input$var2]] > 0,
              !is.na(legal_aid_service_area))
     
     plt <- ggplot(plt_dat, aes(x = .data[[input$var1]], y = .data[[input$var2]], 
                                color = legal_aid_service_area, size = total_pop,
-                               text = paste0("Zipcode: ", GEOID, "<br>", 
-                                            "Region: ", primary_city, ", ", county, "<br>",
-                                            "Estimated Population: ", total_pop, "<br>",
+                               text = paste0("Region: ", locality, "<br>",
+                                            "Estimated Population: ", scales::comma(total_pop), "<br>",
                                             names(my_choices[my_choices == input$var1]), ": ", round(.data[[input$var1]]), "%", "<br>",
                                             names(my_choices[my_choices == input$var2]), ": ", round(.data[[input$var2]]), "%", "<br>"))) +
       # annotate("text", x = 80, y = plt_median_y - 3,
@@ -169,15 +171,13 @@ server <- function(input, output, session) {
   })
   
   data <- reactive({
-    zcta_rent %>%
+    rv$dat %>%
       as_tibble() %>%
-      select(GEOID, primary_city, county, legal_aid_service_area,total_pop, total_renters, 
+      select(locality, legal_aid_service_area, total_pop, total_renters, 
              total_burdened, med_gross_rent, med_hh_income,median_principal, total_filed, 
              total_default, total_immediate, n_d_attorney,
              cases_plaintiff_business) %>%
-      rename("Zipcode" = GEOID,
-             "City" = primary_city,
-             "County" = county,
+      rename("Region" = locality,
              "Service Area" = legal_aid_service_area,
              "Total Pop." = total_pop,
              "Rental Pop." = total_renters,
@@ -194,6 +194,10 @@ server <- function(input, output, session) {
       
   })
   
+    output$geo <- renderText({
+    paste0("Grouped by ", tolower(input$geo))
+  })
+  
   output$downloadData <- downloadHandler(
     filename = function() {
       # Use the selected dataset as the suggested file name
@@ -207,15 +211,13 @@ server <- function(input, output, session) {
   
   output$tbl <- renderReactable(
     
-    zip_tbl <- zcta_rent %>%
+    tbl <- rv$dat %>%
       as_tibble() %>%
-      select(GEOID, primary_city, county, legal_aid_service_area,total_pop, total_renters, 
+      select(locality, legal_aid_service_area, total_pop, total_renters, 
              total_burdened, med_gross_rent, med_hh_income,median_principal, total_filed, 
              total_default, total_immediate, n_d_attorney,
              cases_plaintiff_business) %>%
-      rename("Zipcode" = GEOID,
-             "City" = primary_city,
-             "County" = county,
+      rename("Region" = locality,
              "Service Area" = legal_aid_service_area,
              "Total Pop." = total_pop,
              "Rental Pop." = total_renters,
@@ -238,21 +240,16 @@ server <- function(input, output, session) {
         filterable = TRUE,
         searchable = TRUE,
         columns = list(
-        `Zipcode` = colDef(format = colFormat(separators = FALSE)),
-        `Median Rent` = colDef(format = colFormat(prefix = "$", digits = 2)),
-        `Median Household Income` = colDef(format = colFormat(prefix = "$", digits = 2)),
-        `Median Case Amount` = colDef(format = colFormat(prefix = "$", digits = 2))),
+          `Zipcode` = colDef(format = colFormat(separators = FALSE)),
+          `Median Rent` = colDef(format = colFormat(prefix = "$", digits = 2)),
+          `Median Household Income` = colDef(format = colFormat(prefix = "$", digits = 2)),
+          `Median Case Amount` = colDef(format = colFormat(prefix = "$", digits = 2))),
         bordered = TRUE,
         highlight = TRUE,
         defaultPageSize = 5
-    
-    
+        
+      )
   )
-  )
-  
-  
-  
-  
 }
 
 shinyApp(ui, server)

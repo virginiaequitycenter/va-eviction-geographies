@@ -2,7 +2,6 @@
 # Background: https://docs.google.com/document/d/1YQzIEelpFLTj7D2t7xB0-F6GVqapQn4lv1I0bGxAUng/edit
 
 # Setup ----
-library(leaflet)
 library(sf)
 library(tidyverse)
 library(tidycensus)
@@ -207,7 +206,12 @@ lasa_rent <- tmp_lasa %>%
   group_by(legal_aid_service_area) %>%
   summarise(across(c(total_pop, rental_units, housing_units, med_gross_rent, 
                      total_renters, med_hh_income, total_burdened), sum),
-            avg_pov_rate = mean(pov_rate),
+            pov_rate = mean(pov_rate),
+            percent_rental_units = (rental_units/housing_units) * 100,
+            percent_renters = (total_renters/total_pop) * 100,
+            percent_burdened = case_when(
+              total_renters > 0 ~ (total_burdened/total_renters) * 100,
+              TRUE ~ 0),
             geometry = st_union(geometry))
 
 # *Evictions by Service Area ----
