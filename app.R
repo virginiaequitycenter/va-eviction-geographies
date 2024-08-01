@@ -19,7 +19,7 @@ my_choices = list(
     "Percent White" = "percent_white",                            #%
     "Percent Black" = "percent_black",                            #%
     "Percent American Indian and Alaska Native" = "percent_aian", #%
-    "Percent Asian" = "percent_aian",                             #%
+    "Percent Asian" = "percent_asian",                             #%
     "Percent Native Hawaiian and Other Pacific Islander" = "percent_nhpi", #%
     "Percent Some Other Race" = "percent_other",                  #%
     "Percent Two or More Races" = "percent_two",                  #%
@@ -77,10 +77,11 @@ ui <- fluidPage(
           h4(textOutput("var2", inline = TRUE)),
           plotlyOutput("plt")),
         tabPanel(
-          title = "Table",
+          title = "Data",
+          h4(textOutput("var2b", inline = TRUE)),
           h6(textOutput("geo", inline = TRUE)),
-          downloadButton("downloadData", "Download"),
-          reactableOutput("tbl"))
+          reactableOutput("tbl"),
+          downloadButton("downloadData", "Download"))
     ))))
 
 # Server ----
@@ -97,6 +98,19 @@ server <- function(input, output, session) {
       rv$dat = lasa_rent
     }
   })
+  observeEvent(c(input$var1, input$var2), {
+    rv$title_str = paste0(as.character(names(my_choices_flat[my_choices_flat == input$var1])), " compared to ", 
+                          as.character(names(my_choices_flat[my_choices_flat == input$var2])))
+    
+    rv$suf = ""
+    rv$pre = ""
+    rv$suf2 = ""
+    rv$pre2 = ""
+    if (grepl("(rate)|(percent)", input$var1)) { rv$suf = "%" }
+    if (grepl("med", input$var1)) { rv$pre = "$"}
+    if (grepl("(rate)|(percent)", input$var2)) { rv$suf2 = "%" }
+    if (grepl("med", input$var2)) { rv$pre2 = "$"}
+  })
   
   output$img <- renderImage({
     list(
@@ -105,7 +119,6 @@ server <- function(input, output, session) {
       width = "100%"
     )
   }, deleteFile = FALSE)
-  
   
   pal <- colorNumeric(palette = "viridis", domain = NULL, reverse = TRUE,
                       na.color = NA)
@@ -130,7 +143,8 @@ server <- function(input, output, session) {
                   color = "black",
                   fillColor = ~pal(rv$dat[[input$var1]]),
                   fillOpacity = 0.5,
-                  popup = paste0(as.character(names(my_choices_flat[my_choices_flat == input$var1])), ": ", scales::comma(round(rv$dat[[input$var1]])), "<br>",
+                  popup = paste0(as.character(names(my_choices_flat[my_choices_flat == input$var1])), ": ", rv$pre,
+                                 scales::comma(round(rv$dat[[input$var1]])), rv$suf, "<br>",
                                  "Total Population: ", scales::comma(rv$dat[["total_pop"]]), "<br>",
                                  "Region: ", rv$dat[["locality"]]),
                   highlightOptions = highlightOptions(
@@ -140,16 +154,12 @@ server <- function(input, output, session) {
                 pal = pal,
                 values = ~ rv$dat[[input$var1]],
                 title = names(my_choices_flat[my_choices_flat == input$var1]),
-                #labFormat = labelFormat(suffix = "%"),
+                labFormat = labelFormat(suffix = rv$suf, prefix = rv$pre),
                 opacity = 1) 
   })
   
-  output$var2 <- renderText({
-     
-    paste0(as.character(names(my_choices_flat[my_choices_flat == input$var1])), " compared to ", 
-           as.character(names(my_choices_flat[my_choices_flat == input$var2])))
-    
-  })
+  output$var2 <- renderText({ rv$title_str })
+  output$var2b <- renderText({ rv$title_str })
   
   output$plt <- renderPlotly({
     
@@ -163,18 +173,21 @@ server <- function(input, output, session) {
              rv$dat[[input$var2]] > 0,
              !is.na(legal_aid_service_area))
     
-    plt <- ggplot(plt_dat, aes(x = .data[[input$var1]], y = .data[[input$var2]], 
-                               color = legal_aid_service_area, size = total_pop,
-                               text = paste0("Region: ", locality, "<br>",
-                                            "Estimated Population: ", scales::comma(total_pop), "<br>",
-                                            names(my_choices_flat[my_choices_flat == input$var1]), ": ", scales::comma(round(.data[[input$var1]])), "<br>",
-                                            names(my_choices_flat[my_choices_flat == input$var2]), ": ", scales::comma(round(.data[[input$var2]])), "<br>"))) +
+    plt <- ggplot(plt_dat, 
+                  aes(x = .data[[input$var1]], y = .data[[input$var2]], 
+                      color = legal_aid_service_area, size = total_pop,
+                      text = paste0(names(my_choices_flat[my_choices_flat == input$var1]), 
+                                    ": ", rv$pre, scales::comma(round(.data[[input$var1]])), rv$suf, "<br>",
+                                    names(my_choices_flat[my_choices_flat == input$var2]), 
+                                    ": ", rv$pre2, scales::comma(round(.data[[input$var2]])), rv$suf2, "<br>",
+                                    "Total Population: ", scales::comma(total_pop), "<br>",
+                                    "Region: ", locality))) +
       geom_hline(aes(yintercept = plt_median_y), linetype = "dashed", linewidth = 0.1) +
       geom_vline(aes(xintercept = plt_median_x), linetype = "dashed", linewidth = 0.1) +
       geom_point(alpha = 0.5) +
       scale_color_manual(values = my_colors) +
-      scale_y_continuous(labels = scales::comma_format()) +
-      scale_x_continuous(labels = scales::comma_format()) +
+      scale_y_continuous(labels = scales::comma_format(prefix = rv$pre2, suffix = rv$suf2)) +
+      scale_x_continuous(labels = scales::comma_format(prefix = rv$pre, suffix = rv$suf)) +
       guides(size = "none") +
       labs(x = names(my_choices_flat[my_choices_flat == input$var1]),
            y = names(my_choices_flat[my_choices_flat == input$var2]),

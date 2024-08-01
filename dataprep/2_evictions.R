@@ -16,6 +16,7 @@ legal_aid_service_areas <- read_csv("data/legal_aid_service_areas.csv") %>%
 evictions <- evictions %>%
   left_join(legal_aid_service_areas, by = join_by(fips == fips))
 
+
 # Deal with missing service areas (Richmond & Newport News)
 evictions <- evictions %>%
   mutate(legal_aid_service_area = case_when(
