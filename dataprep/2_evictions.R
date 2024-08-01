@@ -48,6 +48,22 @@ evictions$plaintiff_non_residential <- identify_non_residential(evictions$plaint
 #   select(plaintiff_name, clean_party_name, plaintiff_non_residential)
 
 # Explore judgments: ----
+# Cases that went to judgment step:
+# latest_hearing_result      n
+# <chr>                  <int>
+#   1 ""                      4976
+# 2 "Continued"               88
+# 3 "Default Judgment"    251714
+# 4 "Judgment"             99593
+# 5 "Other"               310667
+
+evictions <- evictions %>%
+  mutate(to_judgment = case_when(
+    grepl("Judgment", latest_hearing_result) ~ TRUE,
+    TRUE ~ FALSE
+  ))
+
+# Types of judgments:
 # judgment                                n
 # <chr>                               <int>
 #   1 ""                                   5773
@@ -83,13 +99,21 @@ evictions <- evictions %>%
 # Summarize by geography ----
 summarize_evictions <- function(df, grouper) {
   
-  #Total cases filed per group
+  #Total cases filed 
   total_filed <- df %>% 
     group_by({{ grouper }}) %>%
     count() %>%
     rename(total_filed = n)
   assign("total_filed", total_filed, .GlobalEnv)
   
+  #Total cases that went to judgment 
+  total_judgment <- df %>%
+    filter(to_judgment == TRUE) %>%
+    group_by({{ grouper }}) %>%
+    count() %>%
+    rename(total_judgment = n)
+  assign("total_judgment", total_judgment, .GlobalEnv)
+    
   #Total default cases per group
   total_default <- df %>% 
     filter(default == TRUE) %>%
@@ -139,11 +163,19 @@ summarize_evictions <- function(df, grouper) {
   # Join by geography:
   evictions_summary <- total_filed %>%
     left_join(total_default) %>%
+    left_join(total_judgment) %>%
     left_join(total_plaintiff_won) %>%
     left_join(total_immediate) %>%
     left_join(median_principal) %>%
     left_join(n_d_attorney) %>%
     left_join(cases_plaintiff_business)
+  assign("evictions_summary", evictions_summary, .GlobalEnv)
+  
+  # Replace NA values with 0
+  evictions_summary <- evictions_summary %>%
+  mutate(
+    across(everything(), ~replace_na(.x, 0))
+  )
   assign("evictions_summary", evictions_summary, .GlobalEnv)
 }
 
@@ -152,14 +184,16 @@ summarize_evictions(evictions, defendant_zip)
 
 write_csv(evictions_summary, "data/evictions_zip.csv")
 
-rm(total_filed, total_default, total_plaintiff_won, total_immediate, median_principal, n_d_attorney, cases_plaintiff_business)
+rm(total_filed, total_judgment, total_default, total_plaintiff_won, total_immediate, 
+   median_principal, n_d_attorney, cases_plaintiff_business)
 
 # County ----
 summarize_evictions(evictions, locality)
 
 write_csv(evictions_summary, "data/evictions_county.csv")
 
-rm(total_filed, total_default, total_plaintiff_won, total_immediate, median_principal, n_d_attorney, cases_plaintiff_business)
+rm(total_filed, total_judgment, total_default, total_plaintiff_won, total_immediate, 
+   median_principal, n_d_attorney, cases_plaintiff_business)
 
 # Legal Aid Service Area ----
 summarize_evictions(evictions, legal_aid_service_area)

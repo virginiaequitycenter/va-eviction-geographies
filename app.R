@@ -8,16 +8,31 @@ library(sf)
 library(tidyverse)
 
 my_choices = list(
-  "People" = list(
-    "Rental Population" = "percent_renters",
-    "Cost-Burdened Renters" = "percent_burdened", 
-    "Poverty Rate" = "pov_rate"),
-  "Eviction" = list(
-    "Eviction Rate" = "filed_pop",
-    "Non-Person Filing Rate" = "percent_plaintiff_business",
-    "Rate of Default Judgments" = "percent_default",
-    "Rate of Immediate Possession" = "percent_immediate",
-    "Defendant Attorney Present" = "percent_d_attorney"))
+  "Population Measures" = list(
+    "Households" = "housing_units",                               #n
+    "Renting Households" = "rental_units",                        #n
+    "Percent Renting Households" = "percent_rental_units",        #%
+    "Median Rent" = "med_gross_rent",                             #$
+    "Median Household Income" = "med_hh_income",                  #$
+    "Cost-Burdened Renters" = "total_burdened",                   #n
+    "Percent Cost-Burdened Renters" = "percent_burdened",         #%
+    "Percent White" = "percent_white",                            #%
+    "Percent Black" = "percent_black",                            #%
+    "Percent American Indian and Alaska Native" = "percent_aian", #%
+    "Percent Asian" = "percent_aian",                             #%
+    "Percent Native Hawaiian and Other Pacific Islander" = "percent_nhpi", #%
+    "Percent Some Other Race" = "percent_other",                  #%
+    "Percent Two or More Races" = "percent_two",                  #%
+    "Percent Hispanic or Latino" = "percent_hispanic"),           #%
+  "Eviction Measures" = list(
+    "Eviction Cases" = "total_filed",                             #n
+    "Eviction Case Rate" = "filed_unit",                          #%
+    "Eviction Cases by Business" = "cases_plaintiff_business",    #n
+    "Business Filing Rate" = "percent_plaintiff_business",        #%
+    "Median Eviction Amount" = "median_principal",                #$
+    "Eviction Judgments" = "total_judgment",                      #n
+    "Eviction Judgment Rate" = "judgment_rate",                   #%
+    "Eviction Judgments per Cases" = "percent_judgment"))         #%
 
 my_choices_flat = flatten(my_choices)
 
@@ -37,7 +52,7 @@ lasa_rent <- readRDS("data/lasa_rent.RDS")
 
 # Fix names - for popups
 zcta_rent <- zcta_rent %>% unite("locality", c("GEOID", "primary_city", "county"), remove = F, sep = ", ")
-county_rent$locality <- county_rent$county
+county_rent$locality <- county_rent$NAME
 lasa_rent$locality <- lasa_rent$legal_aid_service_area
 
 # UI ----
@@ -115,7 +130,7 @@ server <- function(input, output, session) {
                   color = "black",
                   fillColor = ~pal(rv$dat[[input$var1]]),
                   fillOpacity = 0.5,
-                  popup = paste0(as.character(names(my_choices_flat[my_choices_flat == input$var1])), ": ", round(rv$dat[[input$var1]]), "%", "<br>",
+                  popup = paste0(as.character(names(my_choices_flat[my_choices_flat == input$var1])), ": ", scales::comma(round(rv$dat[[input$var1]])), "<br>",
                                  "Total Population: ", scales::comma(rv$dat[["total_pop"]]), "<br>",
                                  "Region: ", rv$dat[["locality"]]),
                   highlightOptions = highlightOptions(
@@ -125,7 +140,7 @@ server <- function(input, output, session) {
                 pal = pal,
                 values = ~ rv$dat[[input$var1]],
                 title = names(my_choices_flat[my_choices_flat == input$var1]),
-                labFormat = labelFormat(suffix = "%"),
+                #labFormat = labelFormat(suffix = "%"),
                 opacity = 1) 
   })
   
@@ -152,14 +167,14 @@ server <- function(input, output, session) {
                                color = legal_aid_service_area, size = total_pop,
                                text = paste0("Region: ", locality, "<br>",
                                             "Estimated Population: ", scales::comma(total_pop), "<br>",
-                                            names(my_choices_flat[my_choices_flat == input$var1]), ": ", round(.data[[input$var1]]), "%", "<br>",
-                                            names(my_choices_flat[my_choices_flat == input$var2]), ": ", round(.data[[input$var2]]), "%", "<br>"))) +
+                                            names(my_choices_flat[my_choices_flat == input$var1]), ": ", scales::comma(round(.data[[input$var1]])), "<br>",
+                                            names(my_choices_flat[my_choices_flat == input$var2]), ": ", scales::comma(round(.data[[input$var2]])), "<br>"))) +
       geom_hline(aes(yintercept = plt_median_y), linetype = "dashed", linewidth = 0.1) +
       geom_vline(aes(xintercept = plt_median_x), linetype = "dashed", linewidth = 0.1) +
       geom_point(alpha = 0.5) +
       scale_color_manual(values = my_colors) +
-      scale_y_continuous(labels = function(x) paste0(x, "%")) +
-      scale_x_continuous(labels = function(x) paste0(x, "%")) +
+      scale_y_continuous(labels = scales::comma_format()) +
+      scale_x_continuous(labels = scales::comma_format()) +
       guides(size = "none") +
       labs(x = names(my_choices_flat[my_choices_flat == input$var1]),
            y = names(my_choices_flat[my_choices_flat == input$var2]),

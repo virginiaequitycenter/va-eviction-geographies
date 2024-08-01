@@ -9,39 +9,61 @@ library(tigris)
 options(tigris_use_cache = TRUE)
 library(zctaCrosswalk)
 
+# Anonymous function to rename census variables:
+rename_variables <- . %>%
+  rename(total_pop = "B01003_001E", # total pop
+         total_renters = "B25033_008E", # total renter population
+         housing_units = "B25002_001E", # total housing units
+         rental_units = "B25070_001E", # total renter-occupied housing units
+         med_hh_income = "S1901_C01_012E", # median household income
+         rent30 = "B25070_007E",  # N renters with 30-34.9% of income to rent 
+         rent35 = "B25070_008E", # N renters with 35-39.9% of income to rent 
+         rent40 = "B25070_009E", # N renters with 40-49.9% of income to rent 
+         rent50 = "B25070_010E", # N renters with 50+% of income to rent 
+         med_gross_rent = "B25064_001E", # median gross rent
+         percent_white = "DP05_0079PE", # percent white alone 
+         percent_black = "DP05_0080PE", # percent black or African American alone
+         percent_aian = "DP05_0081PE", # percent American Indian and Alaska Native alone  
+         percent_asian = "DP05_0082PE", # percent Asian alone
+         percent_nhpi = "DP05_0083PE", # percent Native Hawaiian and Other Pacific Islander alone
+         percent_other = "DP05_0084PE", # percent Some other race alone 
+         percent_two = "DP05_0085PE", # percent Two or more races
+         percent_hispanic = "DP05_0073PE") # Percent Hispanic or Latino
+
+vars <- c("B01003_001", "B25033_008", "B25002_001", "B25070_001", "S1901_C01_012", 
+          "B25070_007", "B25070_008", "B25070_009", "B25070_010", "B25064_001",    
+          "DP05_0079P", "DP05_0080P", "DP05_0081P", "DP05_0082P", "DP05_0083P",    
+          "DP05_0084P", "DP05_0085P", "DP05_0073P")    
+
+# Anonymous function to derive population-level info:
+derive_pops <- . %>%
+  mutate(percent_rental_units = (rental_units/housing_units) * 100,
+       percent_renters = (total_renters/total_pop) * 100,
+       total_burdened = rent30 + rent35 + rent40 + rent50,
+       percent_burdened = case_when(
+         total_renters > 0 ~ (total_burdened/total_renters) * 100,
+         TRUE ~ 0))
+
+# Anonymous function to calculate eviction-level percentages 
 calculate_percentages <- . %>%
   mutate(
-  # total filed per rental unit
+  #Total filed per rental unit 
   filed_unit = case_when( 
     rental_units > 0 ~ (total_filed/rental_units) * 100,  
     TRUE ~ NA),
-  # total filed per renter
-  filed_renter = case_when(
-    total_renters > 0 ~ (total_filed/total_renters) * 100,
-    TRUE ~ NA),
-  # total filed per total pop
-  filed_pop = (total_filed/total_pop) * 100,
-  # percent default
-  percent_default = case_when(
-    total_filed > 0 ~ (total_default/total_filed) * 100,
-    TRUE ~ NA),
-  # percent plaintiff won 
-  percent_plaintiff_won = case_when(
-    total_filed > 0 ~ (total_plaintiff_won/total_filed) * 100,
-    TRUE ~ NA),
-  # percent where defendant had an attorney present
-  percent_d_attorney = case_when(
-    total_filed > 0 ~ (n_d_attorney / total_filed) * 100,
-    TRUE ~ NA),
-  # percent filed by non-person plaintiffs
-  percent_plaintiff_business= case_when(
+  #Percent filed by non-person plaintiffs
+  percent_plaintiff_business = case_when(
     total_filed > 0 ~ (cases_plaintiff_business / total_filed) * 100, 
     TRUE ~ NA),
-  # percent of cases where possession was immediate 
-  percent_immediate = case_when(
-    total_filed > 0 ~ (total_immediate / total_filed) * 100,
+  #Percent of cases that went to judgment
+  percent_judgment = case_when(
+    total_filed > 0 ~ (total_judgment / total_filed) * 100,
+    TRUE ~ NA),
+  #Judgments per rental unit
+  judgment_rate = case_when(
+    rental_units > 0 ~ (total_judgment / rental_units) * 100,
     TRUE ~ NA)
-)
+  )
 
 # Supplemental info ----
 # Zip codes:
@@ -57,28 +79,8 @@ zips <- zips %>%
 legal_aid_service_areas <- read_csv("data/legal_aid_service_areas.csv") %>%
   select(-geometry)
 
-# legal_aid_service_areas <- legal_aid_service_areas %>%
-#   rename(legal_aid_pop = pop_est) %>%
-#   mutate(fips = as.integer(str_sub(GEOID, 3, -1)),
-#          county = str_sub(NAME, 1, nchar(NAME) - 10)) %>%
-#   select(-GEOID, -NAME)
-
-# Initial variables to explore: 
-# Rent burden = percent of renting households with gross rent 30% or more of household income
-vars <- c("B01003_001",    # total population
-          "S1701_C03_001", # poverty rate
-          "S1901_C01_012", # median household income
-          "B25070_001",    # total renter-occupied housing units
-          "B25070_007",    # N renters with 30-34.9% of income to rent 
-          "B25070_008",    # N renters with 35-39.9% of income to rent 
-          "B25070_009",    # N renters with 40-49.9% of income to rent 
-          "B25070_010",    # N renters with 50+% of income to rent 
-          "B25002_001",    # total housing units
-          "B25064_001",    # median gross rent
-          "B25033_008")    # total renter population  
-
 # Zipcode level ----
-# *Census ----
+# Get census info
 # Error : The Census Bureau has not yet released the CB ZCTA file for 2022. 
 # Please use the argument `year = 2020` or `cb = FALSE` instead.
 zcta_rent <- get_acs(geography = "zcta",
@@ -92,28 +94,13 @@ zcta_rent <- zcta_rent %>%
   filter(GEOID %in% get_zctas_by_state("VA")) %>%
   select(-ends_with("M")) %>%
   mutate(GEOID = as.numeric(GEOID)) %>%
-  rename(total_pop = "B01003_001E",
-         pov_rate = "S1701_C03_001E",
-         med_hh_income = "S1901_C01_012E",
-         rental_units = "B25070_001E",
-         rent30 = "B25070_007E",
-         rent35 = "B25070_008E",
-         rent40 = "B25070_009E",
-         rent50 = "B25070_010E",
-         housing_units = "B25002_001E",
-         med_gross_rent = "B25064_001E",
-         total_renters = "B25033_008E")
+  rename_variables()
 
-# Normalize by populations
+# Derive population-level info
 zcta_rent <- zcta_rent %>%
   filter(housing_units > 0,
          total_pop > 0) %>%
-  mutate(percent_rental_units = (rental_units/housing_units) * 100,
-         percent_renters = (total_renters/total_pop) * 100,
-         total_burdened = rent30 + rent35 + rent40 + rent50,
-         percent_burdened = case_when(
-           total_renters > 0 ~ (total_burdened/total_renters) * 100,
-           TRUE ~ 0))
+  derive_pops()
 
 # Join with supplemental zip and service area info 
 zcta_rent <- zcta_rent %>%
@@ -121,7 +108,7 @@ zcta_rent <- zcta_rent %>%
   left_join(legal_aid_service_areas, by = join_by(county == locality)) %>%
   drop_na(type)
 
-# *Evictions by zip----
+# Join with evictions
 evictions_zip <- read_csv("data/evictions_zip.csv")
 
 zcta_rent <- zcta_rent %>%
@@ -130,20 +117,15 @@ zcta_rent <- zcta_rent %>%
 
 # Missing zips? Cities -- included in relevant county data
 
-zcta_rent %>%
-  select(-geometry) %>%
-  group_by(legal_aid_service_area) %>%
-  count()
-
-# *Calculate percentages ----
+# Calculate eviction percentages
 zcta_rent <- zcta_rent %>%
   calculate_percentages()
   
-# Save zip aggregation 
+# Save 
 saveRDS(zcta_rent, "data/zcta_rent.RDS")
 
 # County level ----
-# *Census ----
+# Get census info
 county_rent <- get_acs(geography = "county",
                        state = "VA",
                        variable = vars,
@@ -155,44 +137,28 @@ county_rent <- county_rent %>%
   select(-ends_with("M")) %>%
   mutate(GEOID = as.numeric(GEOID),
          NAME = str_to_title(gsub("(.*),.*", "\\1", NAME))) %>%
-  rename(county = "NAME",
-         total_pop = "B01003_001E",
-         pov_rate = "S1701_C03_001E",
-         med_hh_income = "S1901_C01_012E",
-         rental_units = "B25070_001E",
-         rent30 = "B25070_007E",
-         rent35 = "B25070_008E",
-         rent40 = "B25070_009E",
-         rent50 = "B25070_010E",
-         housing_units = "B25002_001E",
-         med_gross_rent = "B25064_001E",
-         total_renters = "B25033_008E")
+  rename_variables()
 
-# Normalize by populations
+# Derive population-level info
 county_rent <- county_rent %>%
   filter(housing_units > 0,
          total_pop > 0) %>%
-  mutate(percent_rental_units = (rental_units/housing_units) * 100,
-         percent_renters = (total_renters/total_pop) * 100,
-         total_burdened = rent30 + rent35 + rent40 + rent50,
-         percent_burdened = case_when(
-           total_renters > 0 ~ (total_burdened/total_renters) * 100,
-           TRUE ~ NA))
+  derive_pops()
 
 # Join with legal aid service area
 county_rent <- county_rent %>%
-  left_join(legal_aid_service_areas, by = join_by(county == locality))
+  left_join(legal_aid_service_areas, by = join_by(NAME == locality))
 
+# Save copy for creating legal aid service area dataframe
 tmp_lasa <- county_rent
 
-# *Evictions by county----
+# Join with evictions
 evictions_county <- read_csv("data/evictions_county.csv")
 
-# Join
 county_rent <- county_rent %>%
-  left_join(evictions_county, by = join_by(county == locality))
+  left_join(evictions_county, by = join_by(NAME == locality))
 
-# *Calculate percentages ----
+# Calculate eviction percentages 
 county_rent <- county_rent %>%
   calculate_percentages()
 
@@ -201,27 +167,32 @@ saveRDS(county_rent, "data/county_rent.RDS")
 
 # Legal Aid Service Area level ----
 
-# Calculate totals
+# Use county census info to calculate population variables for service areas
 lasa_rent <- tmp_lasa %>%
   group_by(legal_aid_service_area) %>%
-  summarise(across(c(total_pop, rental_units, housing_units, med_gross_rent, 
-                     total_renters, med_hh_income, total_burdened), sum),
-            pov_rate = mean(pov_rate),
-            percent_rental_units = (rental_units/housing_units) * 100,
-            percent_renters = (total_renters/total_pop) * 100,
-            percent_burdened = case_when(
-              total_renters > 0 ~ (total_burdened/total_renters) * 100,
-              TRUE ~ 0),
-            geometry = st_union(geometry))
+  summarise(
+    # add counts
+    across(c(total_pop, total_renters, rental_units, housing_units,  total_burdened), sum),
+    # get median percentages and dollar amounts 
+    across(c(med_gross_rent, med_hh_income, percent_white, percent_black,
+                     percent_aian, percent_asian, percent_nhpi, percent_other, 
+                     percent_two, percent_hispanic), mean),
+    # derive pop variables
+    percent_rental_units = (rental_units/housing_units) * 100,
+    percent_renters = (total_renters/total_pop) * 100,
+    percent_burdened = case_when(
+      total_renters > 0 ~ (total_burdened/total_renters) * 100,
+      TRUE ~ 0),
+    # create new geometry 
+    geometry = st_union(geometry)) 
 
-# *Evictions by Service Area ----
+# Join with evictions
 evictions_servicearea <- read_csv("data/evictions_servicearea.csv")
 
-# Join
 lasa_rent <- lasa_rent %>%
   left_join(evictions_servicearea)
 
-# *Calculate Percentages ----
+# Calculate eviction percentages
 lasa_rent <- lasa_rent %>%
   calculate_percentages()
 
