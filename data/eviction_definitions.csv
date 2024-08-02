@@ -1,0 +1,24 @@
+name,variable,definition
+Eviction Cases,total_filed,The total number of Unlawful Detainer cases filed in court by landlords between 2018 and 2023. Source: Legal Services Corporation Virginia
+Eviction Case Rate,filed_unit ,The number of Unlawful Detainer cases filed per renting household between 2018 and 2023. Source: Legal Services Corporation Virginia
+Eviction Cases by Business,cases_plaintiff_business,The number of Unlawful Detainer cases filed by business entities between 2018 and 2023. Source: Legal Services Corporation Virginia
+Eviction Cases by Business per Cases,percent_plaintiff_business,The percentage of Unlawful Detainer cases filed by business entities between 2018 and 2023.
+Median Eviction Amount,median_principal,The median dollar amount owed to the landlord by the tenant per Unlawful Detainer case between 2018 and 2023. Source: Legal Services Corporation Virginia
+Eviction Judgments,total_judgment,The number of Unlawful Detainer cases filed where a Judgment for Possession was ruled between 2018 and 2023. Source: Legal Services Corporation Virginia
+Eviction Judgment Rate,judgment_rate,The number of Judgments for Possession per rental household between 2018 and 2023. Source: Legal Services Corporation Virginia
+Eviction Judgments per Cases,percent_judgment,The percentage of Unlawful Detainer cases where a Judgment for Possession was ruled between 2018 and 2023. 
+Households,housing_units,"The total number of housing units between 2018 and 2022. A housing unit is a house, an apartment, a mobile home, a group of rooms, a single room occupied as a separate living quarter or vacant units intended for occupancy. Source: American Community Survey 5-Year Estimates 2022"
+Renting Households,rental_units,The number of renter-occupied housing units between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
+Percent Renting Households,percent_rental_units,The percentage of housing units that were renter-occupied between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
+Median Rent,med_gross_rent,The median gross monthly rental amount per unit between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
+Median Household Income,med_hh_income,"The median total pretax cash income of everyone 15 or older living in the same housing unit. This includes income from wages, salaries, investments, businesses, and government entitlements like unemployment, social security, and child support. Source: American Community Survey 5-Year Estimates 2022"
+Cost-Burdened Renters,total_burdened,The number of renters who pay more than 30% of their income for housing between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
+Percent Cost-Burdened Renters,percent_burdened,The percent of renters who pay more than 30% of their income for housing between 2018 and 2022.
+Percent White,percent_white,The percent of the population who identify as white alone between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
+Percent Black,percent_black,The percent of the population who identify as Black or African American alone between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
+Percent American Indian and Alaska Native,percent_aian,The percent of the population who identify as American Indian or Alaska Native alone between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
+Percent Asian ,percent_asian,The percent of the population who identify as Asian alone between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
+Percent Native Hawaiian and Other Pacific Islander ,percent_nhpi,The percent of the population who identify as Native Hawaiian or Other Pacific Islander alone between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
+Percent Some other race alone,percent_other,The percent of the population who identify as a race not listed above alone between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
+Percent Two or More Races,percent_two,The percent of the population who identify as 2 or more races between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
+Percent Hispanic or Latino,percent_hispanic,The percent of the population who identify as Hispanic or Latino between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022

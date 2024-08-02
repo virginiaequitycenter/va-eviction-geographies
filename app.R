@@ -21,7 +21,7 @@ my_choices = list(
     "Percent American Indian and Alaska Native" = "percent_aian", #%
     "Percent Asian" = "percent_asian",                             #%
     "Percent Native Hawaiian and Other Pacific Islander" = "percent_nhpi", #%
-    "Percent Some Other Race" = "percent_other",                  #%
+    "Percent Another Race not Listed" = "percent_other",                  #%
     "Percent Two or More Races" = "percent_two",                  #%
     "Percent Hispanic or Latino" = "percent_hispanic"),           #%
   "Eviction Measures" = list(
@@ -45,10 +45,14 @@ my_colors <- c("Southwest Virginia Legal Aid Society" = "#E31A1C",
                "Legal Aid Works" = "#FB9A99",
                "Legal Aid Society of Eastern Virginia" = "#A6CEE3")
 
-areas_sf <- readRDS("data/areas_sf.RDS")
+# Read data 
 zcta_rent <- readRDS("data/zcta_rent.RDS") 
 county_rent <- readRDS("data/county_rent.RDS")
 lasa_rent <- readRDS("data/lasa_rent.RDS")
+defs <- read_csv("data/eviction_definitions.csv")
+
+defs_choices <- defs$variable %>%
+  set_names(defs$definition)
 
 # Fix names - for popups
 zcta_rent <- zcta_rent %>% unite("locality", c("GEOID", "primary_city", "county"), remove = F, sep = ", ")
@@ -71,11 +75,14 @@ ui <- fluidPage(
         tabPanel(
           title = "Explore", 
           h4(textOutput("var1", inline = TRUE)),
+          textOutput("def1", inline = TRUE),
           leafletOutput("map")),
         tabPanel(
           title = "Compare", 
           h4(textOutput("var2", inline = TRUE)),
-          plotlyOutput("plt")),
+          plotlyOutput("plt"),
+          h4(("Variable Definitions")),
+          htmlOutput("def2", inline = TRUE)),
         tabPanel(
           title = "Data",
           h4(textOutput("var2b", inline = TRUE)),
@@ -98,6 +105,7 @@ server <- function(input, output, session) {
       rv$dat = lasa_rent
     }
   })
+  
   observeEvent(c(input$var1, input$var2), {
     rv$title_str = paste0(as.character(names(my_choices_flat[my_choices_flat == input$var1])), " compared to ", 
                           as.character(names(my_choices_flat[my_choices_flat == input$var2])))
@@ -106,15 +114,15 @@ server <- function(input, output, session) {
     rv$pre = ""
     rv$suf2 = ""
     rv$pre2 = ""
-    if (grepl("(rate)|(percent)", input$var1)) { rv$suf = "%" }
+    if (grepl("(percent)", input$var1)) { rv$suf = "%" }
     if (grepl("med", input$var1)) { rv$pre = "$"}
-    if (grepl("(rate)|(percent)", input$var2)) { rv$suf2 = "%" }
+    if (grepl("(percent)", input$var2)) { rv$suf2 = "%" }
     if (grepl("med", input$var2)) { rv$pre2 = "$"}
   })
   
   output$img <- renderImage({
     list(
-      src = file.path("service_areas_full.png"),
+      src = file.path("images/service_areas_full.png"),
       contentType = "image/png",
       width = "100%"
     )
@@ -127,8 +135,10 @@ server <- function(input, output, session) {
     as.character(names(my_choices_flat[my_choices_flat == input$var1]))
   })
   
-  output$geo <- renderText({
-    paste0("Grouped by ", tolower(input$geo))
+  output$geo <- renderText({paste0("Grouped by ", tolower(input$geo))})
+  
+  output$def1 <- renderText({
+    as.character(names(defs_choices[defs_choices == input$var1]))
   })
   
   output$map <- renderLeaflet({
@@ -161,13 +171,20 @@ server <- function(input, output, session) {
   output$var2 <- renderText({ rv$title_str })
   output$var2b <- renderText({ rv$title_str })
   
+  output$def2 <- renderText({
+    paste0("<b>", "X Axis - ", as.character(names(my_choices_flat[my_choices_flat == input$var1])), "</b>",
+           ": ", as.character(names(defs_choices[defs_choices == input$var1])),
+           "<br>",
+           "<br>",
+           "<b>", "Y Axis - ", as.character(names(my_choices_flat[my_choices_flat == input$var2])), "</b>",
+           ": ", as.character(names(defs_choices[defs_choices == input$var2])))
+  })
+  
   output$plt <- renderPlotly({
     
     plt_median_x <- median(rv$dat[[input$var1]], na.rm = TRUE)
-    
     plt_median_y <- median(rv$dat[[input$var2]], na.rm = TRUE)
       
-    
     plt_dat <- rv$dat %>%
       filter(rv$dat[[input$var1]] > 0,
              rv$dat[[input$var2]] > 0,
