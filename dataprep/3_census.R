@@ -172,7 +172,7 @@ tmp_lasa <- county_rent
 evictions_county <- read_csv("data/evictions_county.csv")
 
 county_rent <- county_rent %>%
-  left_join(evictions_county, by = join_by(county_fips == fips))
+  left_join(evictions_county, by = join_by(NAME == locality))
 
 # Calculate eviction percentages 
 county_rent <- county_rent %>%
