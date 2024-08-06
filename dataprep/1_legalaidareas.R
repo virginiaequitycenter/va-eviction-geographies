@@ -7,8 +7,8 @@ library(sf)
 library(tigris)
 options(tigris_use_cache = TRUE)
 
-# Get localities/fips ----
-va_localities <- get_acs(
+# Get counties/fips ----
+va_counties <- get_acs(
   geography = "county",
   state = "51",
   variables = "B01001_001",
@@ -17,10 +17,11 @@ va_localities <- get_acs(
   geometry = TRUE
 )
 
-va_localities <- va_localities %>% 
-  select(GEOID, NAME, county_pop_est = estimate) %>%
-  mutate(fips = as.integer(gsub("^.{0,2}", "", GEOID)),
-         locality = str_to_title(gsub("(.*),.*", "\\1", NAME)))
+va_counties <- va_counties %>% 
+  select(GEOID, NAME) %>%
+  mutate(fips = gsub("^.{0,2}", "", GEOID),
+         locality = str_to_title(gsub("(.*),.*", "\\1", NAME))) %>%
+  select(-NAME)
 
 # Identify legal aid areas ----
 lsnv <- c("51013", "51510", "51610", "51059", "51107", 
@@ -67,7 +68,7 @@ vlas <- c("51141", "51089", "51590", "51143", "51031",
           "51690")
 
 # Assign legal aid areas ----
-va_localities <- va_localities %>% 
+va_counties <- va_counties %>% 
   mutate(legal_aid_service_area = case_when(
     GEOID %in% lsnv ~ "Legal Services of Northern Virginia",
     GEOID %in% law ~ "Legal Aid Works",
@@ -77,13 +78,13 @@ va_localities <- va_localities %>%
     GEOID %in% lasrv ~ "Legal Aid Society of Roanoke Valley",
     GEOID %in% svlas ~ "Southwest Virginia Legal Aid Society",
     GEOID %in% vlas ~ "Virginia Legal Aid Society")) %>%
-  select(-GEOID, -NAME, -geometry)
+  select(-GEOID, -geometry)
 
 # Save CSV (no geometry - used for joining with census info)
-write_csv(va_localities, "data/legal_aid_service_areas.csv")
+write_csv(va_counties, "data/legal_aid_service_areas.csv")
 
 # Save Legal Aid Area Geometry - used for maps
-areas_sf <- va_localities %>%
+areas_sf <- va_counties %>%
   group_by(legal_aid_service_area) %>%
   mutate(geometry = st_union(geometry))
 
@@ -100,7 +101,7 @@ my_colors <- c("Southwest Virginia Legal Aid Society" = "#E31A1C",
                "Legal Aid Works" = "#fcb2b2",
                "Legal Aid Society of Eastern Virginia" = "#A6CEE3")
 
-ggplot(va_localities) +
+ggplot(va_counties) +
   geom_sf(aes(fill = legal_aid_service_area)) +
   scale_fill_manual(values = my_colors, guide = "none") +
   annotate("label", x = -78, y = 36.75, label = "VA Legal Aid Society", size = 2.5) +
@@ -115,5 +116,3 @@ ggplot(va_localities) +
   annotate("label", x = -75.7, y = 37.2, label = "Legal Aid Society\nof Eastern VA", size = 2.5) +
   theme_void() +
   ggtitle("     Virginia Legal Aid Service Areas")
-
-

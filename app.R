@@ -26,13 +26,13 @@ my_choices = list(
     "Percent Hispanic or Latino" = "percent_hispanic"),           #%
   "Eviction Measures" = list(
     "Eviction Cases" = "total_filed",                             #n
-    "Eviction Case Rate" = "filed_unit",                          #%
+    "Eviction Cases per Rental Unit" = "filed_unit",              #n
     "Eviction Cases by Business" = "cases_plaintiff_business",    #n
-    "Business Filing Rate" = "percent_plaintiff_business",        #%
+    "Percent Filed by Businesses" = "percent_plaintiff_business", #%
     "Median Eviction Amount" = "median_principal",                #$
     "Eviction Judgments" = "total_judgment",                      #n
-    "Eviction Judgment Rate" = "judgment_rate",                   #%
-    "Eviction Judgments per Cases" = "percent_judgment"))         #%
+    "Eviction Judgments per Rental Unit" = "judgment_rate",       #%
+    "Percent Judgment Ruled" = "percent_judgment"))               #%
 
 my_choices_flat = flatten(my_choices)
 
@@ -55,7 +55,7 @@ defs_choices <- defs$variable %>%
   set_names(defs$definition)
 
 # Fix names - for popups
-zcta_rent <- zcta_rent %>% unite("locality", c("GEOID", "primary_city", "county"), remove = F, sep = ", ")
+zcta_rent <- zcta_rent %>% unite("locality", c("GEOID", "city", "locality"), remove = F, sep = ", ")
 county_rent$locality <- county_rent$NAME
 lasa_rent$locality <- lasa_rent$legal_aid_service_area
 
@@ -73,23 +73,31 @@ ui <- fluidPage(
       tabsetPanel(
         id = "tabset",
         tabPanel(
-          title = "Explore", 
+          title = "Explore",
+          icon = icon("map"),
           h4(textOutput("var1", inline = TRUE)),
           textOutput("def1", inline = TRUE),
           leafletOutput("map")),
         tabPanel(
           title = "Compare", 
+          icon = icon("chart-line"),
           h4(textOutput("var2", inline = TRUE)),
           plotlyOutput("plt"),
           h4(("Variable Definitions")),
           htmlOutput("def2", inline = TRUE)),
         tabPanel(
-          title = "Data",
+          title = "Test",
+          h4("Hold for Rent Exploitation Data Story"),
+          icon = icon("pen")),
+        tabPanel(
+          title = "Download",
+          icon = icon("table"),
           h4(textOutput("var2b", inline = TRUE)),
           h6(textOutput("geo", inline = TRUE)),
           reactableOutput("tbl"),
           downloadButton("downloadData", "Download"))
-    ))))
+        )
+    )))
 
 # Server ----
 
@@ -294,6 +302,14 @@ server <- function(input, output, session) {
         
       )
   )
+  
+  output$process <- renderImage({
+    list(
+      src = file.path("images/process.png"),
+      contentType = "image/png",
+      width = "80%"
+    )
+  }, deleteFile = FALSE)
 }
 
 shinyApp(ui, server)

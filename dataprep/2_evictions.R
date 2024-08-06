@@ -6,7 +6,8 @@ library(tidyverse)
 library(ECtools)
 
 # Read eviction data
-evictions <- read.delim("data/cases_residential_only.txt", sep = ",")
+evictions <- read.delim("data/cases_residential_only.txt", sep = ",") %>%
+  mutate(fips = as.character(formatC(fips, width = 3, format = "d", flag = "0")))
 
 # Read service areas
 legal_aid_service_areas <- read_csv("data/legal_aid_service_areas.csv") %>%
@@ -15,7 +16,6 @@ legal_aid_service_areas <- read_csv("data/legal_aid_service_areas.csv") %>%
 # Join evictions with service areas
 evictions <- evictions %>%
   left_join(legal_aid_service_areas, by = join_by(fips == fips))
-
 
 # Deal with missing service areas (Richmond & Newport News)
 evictions <- evictions %>%
@@ -189,7 +189,7 @@ rm(total_filed, total_judgment, total_default, total_plaintiff_won, total_immedi
    median_principal, n_d_attorney, cases_plaintiff_business)
 
 # County ----
-summarize_evictions(evictions, locality)
+summarize_evictions(evictions, fips)
 
 write_csv(evictions_summary, "data/evictions_county.csv")
 
