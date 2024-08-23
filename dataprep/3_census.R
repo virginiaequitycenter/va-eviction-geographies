@@ -17,6 +17,7 @@ rename_variables <- . %>%
          total_renters = "B25033_008E", # total renter population
          housing_units = "B25002_001E", # total housing units 
          rental_units = "B25003_003E", # total renter-occupied housing units
+         percent_pov = "S1701_C03_001E", # poverty rate
          med_hh_income = "S1901_C01_012E", # median household income 
          rent30 = "B25070_007E", # N renters with 30-34.9% of income to rent 
          rent35 = "B25070_008E", # N renters with 35-39.9% of income to rent 
@@ -40,6 +41,7 @@ vars <- c("B01003_001",    # total pop
           "B25033_008",    # renter pop
           "B25002_001",    # total housing units
           "B25003_003",    # total renter-occupied units
+          "S1701_C03_001", # pov rate
           "S1901_C01_012", # med hh income
           "B25070_007", "B25070_008", "B25070_009", "B25070_010", # rent burden
           "B25064_001",    # med rent 
@@ -172,7 +174,7 @@ tmp_lasa <- county_rent
 evictions_county <- read_csv("data/evictions_county.csv")
 
 county_rent <- county_rent %>%
-  left_join(evictions_county, by = join_by(NAME == locality))
+  left_join(evictions_county, by = join_by(county_fips == fips))
 
 # Calculate eviction percentages 
 county_rent <- county_rent %>%

@@ -9,30 +9,33 @@ library(tidyverse)
 
 my_choices = list(
   "Population Measures" = list(
-    "Households" = "housing_units",                               #n
-    "Renting Households" = "rental_units",                        #n
-    "Percent Renting Households" = "percent_rental_units",        #%
-    "Median Rent" = "med_gross_rent",                             #$
-    "Median Household Income" = "med_hh_income",                  #$
-    "Cost-Burdened Renters" = "total_burdened",                   #n
-    "Percent Cost-Burdened Renters" = "percent_burdened",         #%
-    "Percent White" = "percent_white",                            #%
-    "Percent Black" = "percent_black",                            #%
-    "Percent American Indian and Alaska Native" = "percent_aian", #%
-    "Percent Asian" = "percent_asian",                             #%
-    "Percent Native Hawaiian and Other Pacific Islander" = "percent_nhpi", #%
-    "Percent Another Race not Listed" = "percent_other",                  #%
-    "Percent Two or More Races" = "percent_two",                  #%
-    "Percent Hispanic or Latino" = "percent_hispanic"),           #%
+    "Households" = "housing_units",                               
+    "Renting Households" = "rental_units",                        
+    "Percent Renting Households" = "percent_rental_units",        
+    "Median Rent" = "med_gross_rent",                             
+    "Median Household Income" = "med_hh_income",                  
+    "Cost-Burdened Renters" = "total_burdened",                   
+    "Percent Cost-Burdened Renters" = "percent_burdened",         
+    "Percent Poverty" = "percent_pov",
+    "Percent White" = "percent_white",                            
+    "Percent Black" = "percent_black",                            
+    "Percent American Indian and Alaska Native" = "percent_aian", 
+    "Percent Asian" = "percent_asian",                             
+    "Percent Native Hawaiian and Other Pacific Islander" = "percent_nhpi", 
+    "Percent Another Race not Listed" = "percent_other",                  
+    "Percent Two or More Races" = "percent_two",                  
+    "Percent Hispanic or Latino" = "percent_hispanic"),           
   "Eviction Measures" = list(
-    "Eviction Cases" = "total_filed",                             #n
-    "Eviction Cases per Rental Unit" = "filed_unit",              #n
-    "Eviction Cases by Business" = "cases_plaintiff_business",    #n
-    "Percent Filed by Businesses" = "percent_plaintiff_business", #%
-    "Median Eviction Amount" = "median_principal",                #$
-    "Eviction Judgments" = "total_judgment",                      #n
-    "Eviction Judgments per Rental Unit" = "judgment_rate",       #%
-    "Percent Judgment Ruled" = "percent_judgment"))               #%
+    "Eviction Cases" = "total_filed",                             
+    "Eviction Cases per Rental Unit" = "filed_unit",              
+    "Eviction Cases by Business" = "cases_plaintiff_business",    
+    "Percent Filed by Businesses" = "percent_plaintiff_business", 
+    "Median Eviction Amount" = "median_principal",                
+    "Eviction Judgments" = "total_judgment",                      
+    "Eviction Judgments per Rental Unit" = "judgment_rate",       
+    "Percent Judgment Ruled" = "percent_judgment",                
+    "Rent Exploitation Ratio" = "exploit"
+  ))
 
 my_choices_flat = flatten(my_choices)
 
@@ -207,8 +210,8 @@ server <- function(input, output, session) {
                                     ": ", rv$pre2, scales::comma(round(.data[[input$var2]])), rv$suf2, "<br>",
                                     "Total Population: ", scales::comma(total_pop), "<br>",
                                     "Region: ", locality))) +
-      geom_hline(aes(yintercept = plt_median_y), linetype = "dashed", linewidth = 0.1) +
-      geom_vline(aes(xintercept = plt_median_x), linetype = "dashed", linewidth = 0.1) +
+      geom_hline(aes(yintercept = plt_median_y, text = "State Median"), linetype = "dashed", linewidth = 0.1) +
+      geom_vline(aes(xintercept = plt_median_x, text = "State Median"), linetype = "dashed", linewidth = 0.1) +
       geom_point(alpha = 0.5) +
       scale_color_manual(values = my_colors) +
       scale_y_continuous(labels = scales::comma_format(prefix = rv$pre2, suffix = rv$suf2)) +
