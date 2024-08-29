@@ -1,0 +1,32 @@
+---
+title: "Housing Justice Reading List"
+author: "Samantha Toet"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+An ongoing collection of background reading materials pertaining to housing justice.
+
+## Rent Exploitation
+
+- [Do the Poor Pay More for Housing? Exploitation, Profit, and Risk in Rental Markets](https://www.journals.uchicago.edu/doi/10.1086/701697)
+
+- [Renting Under Racial Capitalism: Residential Segregation and Rent Exploitation in the United States](https://drive.google.com/file/d/15aOEkc6I2TFdSgUmg_u8dCJmMVO-6Fgs/view)
+
+## Eviction
+
+- [Eviction and the Reproduction of Urban Poverty](https://www.journals.uchicago.edu/doi/full/10.1086/666082)
+
+
+## Structures 
+
+- [Organized abandonment under racial capitalism: Measuring accountable actors of structural racism for public health research and action](https://www.sciencedirect.com/science/article/abs/pii/S0277953624000200)
+
+
+## Research Methodology
+
+- [Racial and Ethnic Residential Segregation Across the United States, Chapter 2: Study Design](https://library.oapen.org/bitstream/id/7eb0efc5-1706-44bd-ba64-28e1569117f4/978-3-031-38371-7.pdf)
+
+- [New methods for measuring and analyzing segregation](https://library.oapen.org/bitstream/id/3b1e8851-8f2e-4f17-8f6e-17076f39a845/1002008.pdf)
