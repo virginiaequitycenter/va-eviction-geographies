@@ -1,14 +1,11 @@
 # Modeling VA eviction and census data 
 
 library(corrplot)
-library(faraway)
 library(Hmisc)
 library(lme4)
 library(sf)
-library(segregation)
 library(tidycensus)
 library(tidyverse)
-library(zctaCrosswalk)
 
 # Questions ----
 
@@ -20,18 +17,19 @@ library(zctaCrosswalk)
 # Eviction and census data:
 county_rent <- readRDS("data/county_rent.RDS")
 
-# Segregation Indices:
+# Segregation Indices 
 # To maintain parity across tools, this data is pulled & calculated using the same mechanisms as the Equity Atlas:
 # https://github.com/virginiaequitycenter/equity-dashboard/blob/main/datacode/addl_county_data.R
 
 # Get tract-level info:
 seg_tract <- get_acs(geography = "tract", 
                      state = "VA",
+                     year = 2023,
                      table = "B03002", 
                      output = "wide", 
                      cache_table = T) # 2022 5-year ACS
 
-seg_tract <- segs %>%
+seg_tract <- seg_tract %>%
   mutate(white = B03002_003E,
          black = B03002_004E,
          asian = B03002_006E,
@@ -47,7 +45,7 @@ seg_tract <- segs %>%
 
 # Get county-level info:
 seg_county <- get_acs(geography = "county", 
-                      year = 2022, 
+                      year = 2023, 
                       state = "VA",
                       table = "B03002", 
                       geometry = F, 
@@ -70,7 +68,7 @@ seg_county <- seg_county %>%
 # Join county totals to tract data to serve as denominator 
 seg_tract <- left_join(seg_tract, seg_county, by = c("county"))
 
-# Dissimilarity 
+# *Dissimilarity ----
 # This is a measure of evenness, or what of one group that would have to move to another area, in order to equalize the population distribution
 # Black/White:
 dissim_wb <- seg_tract %>%
@@ -84,25 +82,54 @@ dissim_wh <- seg_tract %>%
   group_by(county) %>%
   summarise(dissim_wh = .5*sum(d.wh, na.rm=T))
 
-# Separation Index
+dissim <- left_join(dissim_wb, dissim_wh, by = c("county"))
+
+# *Separation Index ----
 # This is another measure of evenness, defined as the condition when all census tracts in a given area 
 # “have the same relative number of minority and majority members as the city as a whole” (Massey and Denton 1988:284)
-# It is more robust than the dissimilarity index because it takes into account multiple variable dissimilarity 
-# From the study: "The difference in average neighborhood proportion White between the two groups is the separation index"
+# It is more robust than the dissimilarity index because it takes into account multiple variable dissimilarity. There are a few 
+# different ways to calculate this measure, however, explored below. 
 
+# ** Proportion ----
+# From the study: "The difference in average neighborhood proportion White between the two groups is the separation index"
 # Black/White:
-sep_wb <- seg_tract %>%
+s_proportion_wb <- seg_tract %>%
   mutate(sep.wb = white/(white + black)) %>%
   group_by(county) %>%
   summarise(sep_wb = mean(sep.wb, na.rm = T))
 
 # Hispanic/White
-sep_wh <- seg_tract %>%
+s_proportion_wh <- seg_tract %>%
   mutate(sep.wh = white/(white + hisp)) %>%
   group_by(county) %>%
   summarise(sep_wh = mean(sep.wh, na.rm = T))
+
+# ** Variance Ratio ----
+# From James and Taeuber: https://www.jstor.org/stable/270845
+# S is equivalent to the variance ratio index (V) 
+# where t_i is the # of people of the reference race in the smaller area,
+# p_i is the proportion of people of the reference race in the smaller area, 
+# T is the # of people of the reference race in the larger area, 
+# P is the proportion of people of the reference race in the larger area
+
+# S = \sum t_i (p_i - P)^2 / TP(1-P)
+
+#Black/White:
+# t_i = black
+# p_i = prop_black = black / (white + black)
+# T = coblack
+# P = prop_coblack = coblack / (cowhite + coblack)
+
+s_var_bw <- seg_tract %>%
+  mutate(prop_b = black/(white + black),
+         prop_cob = coblack/(cowhite + coblack)) %>%
+  group_by(county) %>%
+  summarise(var_bw = sum())
   
-dissim <- left_join(dissim_wb, dissim_wh, by = c("county"))
+
+
+
+-------
 
 # Join segregation variables of interest with county eviction and exploitation data 
 county_rent <- county_rent %>%
@@ -155,18 +182,24 @@ county_cor <- cor(county_pcts, use = "complete.obs", method = "spearman") # spea
 
 corrplot(county_cor)
 
-# Regression ----
+# Modeling ----
+
+# Main questions:
+#1.) What community characteristics (such as race, ethnicity, or socioeconomics) influence evictions? 
+#2.) What landlord characteristics (such as individuals or businesses) influence evictions?
+#3.) Are businesses more likely to participate in serial eviction filings? 
+#4.) Maybe: are eviction rates positively correlated with levels of rent burden and/or exploitation?
 
 # Study data:
 # ACS 5 year: med rent, med tax, exploitation, race/eth, med hh income, pov rate, % rental units, med age of unit
-# -Tracts w/in counties
-# -Tracts w/greater than or equal to 10% renter pop - only 3 in VA, lowest is only 8%. Some counties only have 300 renters -- is this too small? 
+# -Zip codes nested w/in counties
+# -Zip codes w/greater than or equal to 5% renter pop - only 3 in VA, lowest is only 8%. Some counties only have 300 renters -- is this too small? 
 
-# Exploitation:
-#H1a: Rent exploitation at neighborhood level will vary depending on racial and socioeconomic composition.
-#H1b: Level and variation of exploitation at neighborhood level is affected by the level of residential segregation in larger area (metro or micropolitan area)
+# *Example from Cromwell Study: Rent Exploitation  ----
+#EX1.: Rent exploitation at neighborhood level will vary depending on racial and socioeconomic composition.
+#EX2.: Level and variation of exploitation at neighborhood level is affected by the level of residential segregation in larger area (metro or micropolitan area)
 
-# H1 Model notes: 
+# Model notes: 
 # - Units = census tracts in counties 
 # - SEs are clustered to account for nesting 
 # - Dependent variable (Y) is rent exploitation 
@@ -174,8 +207,7 @@ corrplot(county_cor)
 # - Tract-level covariates: percent_black, percent_hispanic, percent_pov, and med_hh_income
 # - Models also control for med_unit_age, percent_owner_occupied_mort, percent_renter_occupied, and total_pop
 
-#H1a: Nested linear regression model 
-# First model: exploitation as a function of poverty 
+# Example model 1: exploitation as a function of poverty 
 mod1 <- lm(exploit ~ percent_pov, data = county_rent)
 summary(mod1)
 
@@ -209,33 +241,7 @@ anova(nullmod, mod1)
 #   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
-
-# Second model:
-# lmer(exploit ~ percent_pov + percent_black + percent_white + percent_hispanic + median_hh_income + 
-#      med_unit_age + percent_owner_occupied_mort + percent_renter_occupied + total_pop)
-
-#H1b: Mixed effects linear regression model with random effects
-# lmer(exploit ~ percent_pov + percent_black + percent_white + percent_hispanic + median_hh_income + 
-#      med_unit_age + percent_owner_occupied_mort + percent_renter_occupied + total_pop | dissim_wb)
-
-# Eviction:
-#H3a: Eviction rates are positively correlated with levels of rent exploitation and rent burden at the neighborhood level
-#H3b: Eviction rates are related to the racial and socioeconomic composition of the neighborhood, with rates being higher in poorer neighborhoods and Black and Hispanic
-
-# H3 Model notes:
-# - Only include tracts with >= 10% renters 
-# - Units = census tracts in counties 
-# - Dependent variable (Y) = eviction rate 
-# - Independent vars = exploit, med_level_rent_burden, percent_black, percent_white, percent_hispanic, percent_pov, med_hh_income
-
-# H3a: Nested linear regression
-# First model: 
-# lme(eviction_rate ~ exploit)
-
-# Second model: 
-
-
-
+# *Eviction ----
 
 
 

@@ -1,5 +1,6 @@
 # Exploring Eviction Geographies 
 # Background: https://docs.google.com/document/d/1YQzIEelpFLTj7D2t7xB0-F6GVqapQn4lv1I0bGxAUng/edit
+# ACS 5-year Survey 2019-2023
 
 # Setup ----
 library(janitor)
@@ -100,9 +101,8 @@ legal_aid_service_areas <- read_csv("data/legal_aid_service_areas.csv") %>%
 
 # Zipcode level ----
 # Get census info
-# Error : The Census Bureau has not yet released the CB ZCTA file for 2022. 
-# Please use the argument `year = 2020` or `cb = FALSE` instead.
 zcta_rent <- get_acs(geography = "zcta",
+                     year = 2023,
                      variable = vars,
                      geometry = TRUE, 
                      output = "wide",
@@ -145,6 +145,7 @@ saveRDS(zcta_rent, "data/zcta_rent.RDS")
 # County level ----
 # Get census info
 county_rent <- get_acs(geography = "county",
+                       year = 2023,
                        state = "VA",
                        variable = vars,
                        geometry = TRUE, 

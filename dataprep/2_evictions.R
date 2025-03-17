@@ -5,6 +5,10 @@ library(tidyverse)
 #remotes::install_github("virginiaequitycenter/ECtools")
 library(ECtools)
 
+# Download the data using the process outlined in https://github.com/virginiaequitycenter/va-evictions
+# Once the data is downloaded, copy the cases_residential_only.txt file to the /data folder in this repository
+# Dates: 1/1/2018 - 12/24/2024
+
 # Read eviction data
 evictions <- read.delim("data/cases_residential_only.txt", sep = ",") %>%
   mutate(fips = as.character(formatC(fips, width = 3, format = "d", flag = "0")))
@@ -48,50 +52,48 @@ evictions$plaintiff_non_residential <- identify_non_residential(evictions$plaint
 # s3 <- sample_n(evictions, 20) %>%
 #   select(plaintiff_name, clean_party_name, plaintiff_non_residential)
 
-# Explore judgments: ----
+# Explore dispositions: ----
 # Cases that went to judgment step:
-# latest_hearing_result      n
-# <chr>                  <int>
-#   1 ""                      4976
-# 2 "Continued"               88
-# 3 "Default Judgment"    251714
-# 4 "Judgment"             99593
-# 5 "Other"               310667
+# disposition           n
+# <chr>             <int>
+# 1 Default Judgment 297848
+# 2 Judgment         120954
+# 3 Other            372965
+# 4 NA                13003
 
 evictions <- evictions %>%
   mutate(to_judgment = case_when(
-    grepl("Judgment", latest_hearing_result) ~ TRUE,
+    grepl("Judgment", disposition) ~ TRUE,
     TRUE ~ FALSE
   ))
 
 # Types of judgments:
 # judgment                                n
-# <chr>                               <int>
-#   1 ""                                   5773
-# 2 "Case Dismissed"                   227577
-# 3 "Case Dismissed with prejudice"       801
-# 4 "Case Dismissed without prejudice"   2408
-# 5 "Defendant"                           848
-# 6 "Non-suit"                          69405
-# 7 "Not Found/Unserved"                 4505
-# 8 "Other"                              5948
-# 9 "Plaintiff"                        349681
-# 10 "Transfer/Change of Venue"             89
-# 11 "null without prejudice"                3
-
-# Questions:
-# What should we do when there is no judgement? 
-# What about when the judgement is other? 
-# Do we care if a case was dismissed w/ or w/o prejudice? 
+# <chr>                                 <int>
+# 1 ""                                  15386     NA
+# 2 "Case Dismissed"                   268080.    Dismissed
+# 3 "Case Dismissed with prejudice"      2282.    Dismissed
+# 4 "Case Dismissed without prejudice"   6521.    Dismissed
+# 5 "Defendant"                           979.    Defendant
+# 6 "Non-suit"                          84406.    NonSuit
+# 7 "Not Found/Unserved"                 5069.    Unserved
+# 8 "Other"                              6367.    Other
+# 9 "Plaintiff"                        415576.    Plaintiff
+# 10 "Transfer/Change of Venue"             98.   Other
+# 11 "null with prejudice"                   1.   Dismissed
+# 12 "null without prejudice"                5.   Dismissed 
+ 
 
 # Temp solution:
 evictions <- evictions %>%
   mutate(
     default = case_when(
-      grepl("Default", latest_hearing_result) ~ TRUE,
+      grepl("Default", disposition) ~ TRUE,
       TRUE ~ FALSE),
     judgment_clean = case_when(
-      grepl("Case|Non-suit|Unserved|null", judgment) ~ "Case Dismissed",
+      grepl("Dismissed|null", judgment) ~ "Case Dismissed",
+      grepl("Non-suit", judgment) ~ "Non-suit",
+      grepl("Unserved", judgment) ~ "Unserved",
       grepl("Defendant", judgment) ~ "Defendant",
       grepl("Plaintiff", judgment) ~ "Plaintiff",
       grepl("Other|Transfer", judgment) ~ "Other",
@@ -200,4 +202,3 @@ rm(total_filed, total_judgment, total_default, total_plaintiff_won, total_immedi
 summarize_evictions(evictions, legal_aid_service_area)
 
 write_csv(evictions_summary, "data/evictions_servicearea.csv")
-
