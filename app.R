@@ -8,32 +8,21 @@ library(sf)
 library(tidyverse)
 
 my_choices = list(
-  "Population Measures" = list(
-    "Households" = "housing_units",                               
-    "Renting Households" = "rental_units",                        
-    "Percent Renting Households" = "percent_rental_units",        
+  "Population Measures (2018-2022 ACS)" = list(
+    "Percent Renting Households" = "pct_rental_units",        
     "Median Rent" = "med_gross_rent",                             
-    "Median Household Income" = "med_hh_income",                  
-    "Cost-Burdened Renters" = "total_burdened",                   
-    "Percent Cost-Burdened Renters" = "percent_burdened",         
-    "Percent Poverty" = "percent_pov",
-    "Percent White" = "percent_white",                            
-    "Percent Black" = "percent_black",                            
-    "Percent American Indian and Alaska Native" = "percent_aian", 
-    "Percent Asian" = "percent_asian",                             
-    "Percent Native Hawaiian and Other Pacific Islander" = "percent_nhpi", 
-    "Percent Another Race not Listed" = "percent_other",                  
-    "Percent Two or More Races" = "percent_two",                  
-    "Percent Hispanic or Latino" = "percent_hispanic"),           
+    "Percent Cost-Burdened Renters" = "pct_burdened",         
+    "Percent Poverty" = "pct_pov",
+    "Percent White" = "pct_white",                            
+    "Percent Black" = "pct_black",                            
+    "Percent Hispanic or Latino" = "pct_hispanic",
+    "Percent Minoritized" = "pct_nonwhite"),           
   "Eviction Measures" = list(
-    "Eviction Cases" = "total_filed",                             
-    "Eviction Cases per Rental Unit" = "filed_unit",              
-    "Eviction Cases by Business" = "cases_plaintiff_business",    
-    "Percent Filed by Businesses" = "percent_plaintiff_business", 
-    "Median Eviction Amount" = "median_principal",                
-    "Eviction Judgments" = "total_judgment",                      
-    "Eviction Judgments per Rental Unit" = "judgment_rate",       
-    "Percent Judgment Ruled" = "percent_judgment",                
+    "Filing Rate" = "eviction_rate",  
+    "Judgment Rate" = "judgment_rate",
+    "Percent Filed by Businesses" = "pct_cases_business", 
+    "Percent Serial Filings" = "pct_serial",
+    "Proportion of Landlords that Engage in Serial Filing Behavior" = "prop_plaintiff_serial", 
     "Rent Exploitation Ratio" = "exploit"
   ))
 
@@ -49,18 +38,18 @@ my_colors <- c("Southwest Virginia Legal Aid Society" = "#E31A1C",
                "Legal Aid Society of Eastern Virginia" = "#A6CEE3")
 
 # Read data 
-zcta_rent <- readRDS("data/zcta_rent.RDS") 
-county_rent <- readRDS("data/county_rent.RDS")
-lasa_rent <- readRDS("data/lasa_rent.RDS")
+zip <- readRDS("data/app_data/zip.RDS") 
+county <- readRDS("data/app_data/county.RDS")
+lasa <- readRDS("data/app_data/lasa.RDS")
 defs <- read_csv("data/eviction_definitions.csv")
 
 defs_choices <- defs$variable %>%
   set_names(defs$definition)
 
-# Fix names - for popups
-zcta_rent <- zcta_rent %>% unite("locality", c("GEOID", "city", "locality"), remove = F, sep = ", ")
-county_rent$locality <- county_rent$NAME
-lasa_rent$locality <- lasa_rent$legal_aid_service_area
+# Create locality variable for popup
+zip <- zip %>% unite("locality", c("zip", "approx_city"), remove = F, sep = ", ")
+county$locality <- county$NAME
+lasa$locality <- lasa$legal_aid_service_area
 
 # UI ----
 
@@ -68,9 +57,10 @@ ui <- fluidPage(
   titlePanel("Exploring Eviction Geographies"),
   sidebarLayout(
     sidebarPanel(
+      selectInput("yr", "Timeframe:", choices = c("2018-2019", "2020-2021", "2022-2023"), selected = "2022-2023"),
       selectInput("geo", "Geographic Grouping:", choices = c("Zipcode", "County", "Legal Aid Service Area"), selected = "County"),
       selectInput("var1", "Exploratory Variable:", choices = my_choices, selected = my_choices[[2]][1]),
-      selectInput("var2", "Comparison Variable:", choices = my_choices, selected = my_choices[[1]][2]),
+      selectInput("var2", "Comparison Variable:", choices = my_choices, selected = my_choices[[1]][3]),
       imageOutput("img")),
     mainPanel(
       tabsetPanel(
@@ -89,10 +79,6 @@ ui <- fluidPage(
           h4(("Variable Definitions")),
           htmlOutput("def2", inline = TRUE)),
         tabPanel(
-          title = "Test",
-          h4("Hold for Rent Exploitation Data Story"),
-          icon = icon("pen")),
-        tabPanel(
           title = "Download",
           icon = icon("table"),
           h4(textOutput("var2b", inline = TRUE)),
@@ -107,14 +93,15 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   
   rv <- reactiveValues()
-  observeEvent(input$geo, {
+  observeEvent(c(input$geo, input$yr), {
     if (input$geo == "Zipcode") {
-      rv$dat = zcta_rent
+      rv$dat = zip
     } else if (input$geo == "County") {
-      rv$dat = county_rent
+      rv$dat = county
     } else {
-      rv$dat = lasa_rent
+      rv$dat = lasa
     }
+    rv$dat = rv$dat %>% filter(yrs == input$yr)
   })
   
   observeEvent(c(input$var1, input$var2), {
@@ -125,9 +112,9 @@ server <- function(input, output, session) {
     rv$pre = ""
     rv$suf2 = ""
     rv$pre2 = ""
-    if (grepl("(percent)", input$var1)) { rv$suf = "%" }
+    if (grepl("(pct)", input$var1)) { rv$suf = "%" }
     if (grepl("med", input$var1)) { rv$pre = "$"}
-    if (grepl("(percent)", input$var2)) { rv$suf2 = "%" }
+    if (grepl("(pct)", input$var2)) { rv$suf2 = "%" }
     if (grepl("med", input$var2)) { rv$pre2 = "$"}
   })
   
@@ -157,17 +144,18 @@ server <- function(input, output, session) {
     rv$dat %>%
       st_transform(crs = 4326) %>%
       leaflet() %>%
-      addProviderTiles(providers$CartoDB.Positron) %>%  
+      addProviderTiles(providers$CartoDB.Voyager) %>%  
       addPolygons(stroke = TRUE,
                   weight = 0.5,
                   opacity = 1,
                   color = "black",
                   fillColor = ~pal(rv$dat[[input$var1]]),
                   fillOpacity = 0.5,
-                  popup = paste0(as.character(names(my_choices_flat[my_choices_flat == input$var1])), ": ", rv$pre,
-                                 scales::comma(round(rv$dat[[input$var1]])), rv$suf, "<br>",
-                                 "Total Population: ", scales::comma(rv$dat[["total_pop"]]), "<br>",
-                                 "Region: ", rv$dat[["locality"]]),
+                  popup = paste0("<b>", as.character(names(my_choices_flat[my_choices_flat == input$var1])), ": ", "</b>", rv$pre,
+                                 scales::comma(round(rv$dat[[input$var1]], digits = 2)), rv$suf, "<br>",
+                                 "<b>","Total Population: ", "</b>", scales::comma(rv$dat[["total_pop"]]), "<br>",
+                                 "<b>", "Total Eviction Filings: ", "</b>", scales::comma(rv$dat[["total_filed"]]), "<br>",
+                                 "<b>", "Region: ", "</b>", rv$dat[["locality"]]),
                   highlightOptions = highlightOptions(
                     fillOpacity = 1,
                     bringToFront = FALSE)) %>%
@@ -204,12 +192,13 @@ server <- function(input, output, session) {
     plt <- ggplot(plt_dat, 
                   aes(x = .data[[input$var1]], y = .data[[input$var2]], 
                       color = legal_aid_service_area, size = total_pop,
-                      text = paste0(names(my_choices_flat[my_choices_flat == input$var1]), 
-                                    ": ", rv$pre, scales::comma(round(.data[[input$var1]])), rv$suf, "<br>",
-                                    names(my_choices_flat[my_choices_flat == input$var2]), 
-                                    ": ", rv$pre2, scales::comma(round(.data[[input$var2]])), rv$suf2, "<br>",
-                                    "Total Population: ", scales::comma(total_pop), "<br>",
-                                    "Region: ", locality))) +
+                      text = paste0("<b>", names(my_choices_flat[my_choices_flat == input$var1]), 
+                                    ": ", "</b>", rv$pre, scales::comma(round(.data[[input$var1]], digits = 2)), rv$suf, "<br>",
+                                    "<b>", names(my_choices_flat[my_choices_flat == input$var2]), 
+                                    ": ", "</b>", rv$pre2, scales::comma(round(.data[[input$var2]], digits = 2)), rv$suf2, "<br>",
+                                    "<b>", "Total Population: ", "</b>", scales::comma(total_pop), "<br>",
+                                    "<b>", "Total Eviction Filings: ", "</b>", scales::comma(total_filed), "<br>",
+                                    "<b>", "Region: ", "</b>", locality))) +
       geom_hline(aes(yintercept = plt_median_y, text = "State Median"), linetype = "dashed", linewidth = 0.1) +
       geom_vline(aes(xintercept = plt_median_x, text = "State Median"), linetype = "dashed", linewidth = 0.1) +
       geom_point(alpha = 0.5) +
