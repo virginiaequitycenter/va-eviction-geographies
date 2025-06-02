@@ -7,15 +7,14 @@ library(sf)
 library(tigris)
 options(tigris_use_cache = TRUE)
 
-# Get counties/fips ----
+# Get counties/fips from 2022 ACS----
 va_counties <- get_acs(
   geography = "county",
   state = "51",
   variables = "B01001_001",
   survey = "acs5",
   year = 2022, 
-  geometry = TRUE
-)
+  geometry = TRUE)
 
 va_counties <- va_counties %>% 
   select(GEOID, NAME) %>%
@@ -78,12 +77,13 @@ va_counties <- va_counties %>%
     GEOID %in% lasrv ~ "Legal Aid Society of Roanoke Valley",
     GEOID %in% svlas ~ "Southwest Virginia Legal Aid Society",
     GEOID %in% vlas ~ "Virginia Legal Aid Society")) %>%
-  select(-GEOID, -geometry)
+  select(-GEOID)
 
-# Save CSV (no geometry - used for joining with census info)
-write_csv(va_counties, "data/legal_aid_service_areas.csv")
+# Save CSV matching counties to service areas (no geometry - the geos pulled earlier are for counties)
+service_areas <- va_counties %>% st_drop_geometry()
+write_csv(service_areas, "data/service_areas.csv")
 
-# Save Legal Aid Area Geometry - used for maps
+# Create and save Legal Aid Area geometries
 areas_sf <- va_counties %>%
   group_by(legal_aid_service_area) %>%
   mutate(geometry = st_union(geometry))
@@ -91,7 +91,6 @@ areas_sf <- va_counties %>%
 write_rds(areas_sf, "data/areas_sf.RDS")
 
 # Build Map ----
-
 my_colors <- c("Southwest Virginia Legal Aid Society" = "#E31A1C",
                "Legal Aid Society of Roanoke Valley" = "#FDBF6F",
                "Blue Ridge Legal Services" = "#1F78B4",
@@ -101,7 +100,7 @@ my_colors <- c("Southwest Virginia Legal Aid Society" = "#E31A1C",
                "Legal Aid Works" = "#fcb2b2",
                "Legal Aid Society of Eastern Virginia" = "#A6CEE3")
 
-ggplot(va_counties) +
+ggplot(areas_sf) +
   geom_sf(aes(fill = legal_aid_service_area)) +
   scale_fill_manual(values = my_colors, guide = "none") +
   annotate("label", x = -78, y = 36.75, label = "VA Legal Aid Society", size = 2.5) +
