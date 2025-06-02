@@ -1,26 +1,16 @@
 name,variable,definition
-Eviction Cases,total_filed,The total number of Unlawful Detainer cases filed in court by landlords between 2018 and 2023. Source: Legal Services Corporation Virginia
-Eviction Cases per Rental Unit,filed_unit ,The number of Unlawful Detainer cases filed per Rental Unit between 2018 and 2023. Source: Legal Services Corporation Virginia
-Eviction Cases by Business,cases_plaintiff_business,The number of Unlawful Detainer cases filed by business entities between 2018 and 2023. Source: Legal Services Corporation Virginia
-Percent Filed by Businesses,percent_plaintiff_business,The percentage of Unlawful Detainer cases filed by business entities between 2018 and 2023.
-Median Eviction Amount,median_principal,The median dollar amount owed to the landlord by the tenant per Unlawful Detainer case between 2018 and 2023. Source: Legal Services Corporation Virginia
-Eviction Judgments,total_judgment,The number of Unlawful Detainer cases filed where a Judgment for Possession was ruled between 2018 and 2023. Source: Legal Services Corporation Virginia
-Eviction Judgments per Rental Unit,judgment_rate,The number of Judgments for Possession per Rental Unit between 2018 and 2023. Source: Legal Services Corporation Virginia
-Percent Judgment Ruled,percent_judgment,The percentage of Unlawful Detainer cases where a Judgment for Possession was ruled between 2018 and 2023. Source: Legal Services Corporation Virginia
-Rent Exploitation Ratio,exploit,The ratio of median renter costs among renter-occupied units to median property taxes between 2018 and 2013. 
-Households,housing_units,"The total number of housing units between 2018 and 2022. A housing unit is a house, an apartment, a mobile home, a group of rooms, a single room occupied as a separate living quarter or vacant units intended for occupancy. Source: American Community Survey 5-Year Estimates 2022"
-Renting Households,rental_units,The number of renter-occupied housing units between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
-Percent Renting Households,percent_rental_units,The percentage of housing units that were renter-occupied between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
-Median Rent,med_gross_rent,The median gross monthly rental amount per unit between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
-Median Household Income,med_hh_income,"The median total pretax cash income of everyone 15 or older living in the same housing unit. This includes income from wages, salaries, investments, businesses, and government entitlements like unemployment, social security, and child support. Source: American Community Survey 5-Year Estimates 2022"
-Cost-Burdened Renters,total_burdened,The number of renters who pay more than 30% of their income for housing between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
-Percent Cost-Burdened Renters,percent_burdened,The percent of renters who pay more than 30% of their income for housing between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
-Percent Poverty,percent_pov,The percent of households living below the poverty level between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
-Percent White,percent_white,The percent of the population who identify as white alone between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
-Percent Black,percent_black,The percent of the population who identify as Black or African American alone between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
-Percent American Indian and Alaska Native,percent_aian,The percent of the population who identify as American Indian or Alaska Native alone between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
-Percent Asian ,percent_asian,The percent of the population who identify as Asian alone between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
-Percent Native Hawaiian and Other Pacific Islander ,percent_nhpi,The percent of the population who identify as Native Hawaiian or Other Pacific Islander alone between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
-Percent Some other race alone,percent_other,The percent of the population who identify as a race not listed above alone between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
-Percent Two or More Races,percent_two,The percent of the population who identify as 2 or more races between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
-Percent Hispanic or Latino,percent_hispanic,The percent of the population who identify as Hispanic or Latino between 2018 and 2022. Source: American Community Survey 5-Year Estimates 2022
+Filing Rate,eviction_rate,The rate of Unlawful Detainer cases filed per rental unit. 
+Judgment Rate,judgment_rate,The rate of Judgments for Possession issued per rental unit. 
+Percent Filed by Businesses,pct_cases_business,The percentage of Unlawful Detainer cases filed by business entities.
+Percent Serial Filings,pct_serial,"The percentage of Unlawful Detainer cases filed that were characterized as being filed multiple times against the same defendants, in the same rental unit, over a 12 month period. "
+Proportion of Landlords that Engage in Serial Filing Behavior,prop_plaintiff_serial,"The proportion of landlords that have engaged in serial filing behavior. Serial eviction filings are characterized by multiple eviction filings against the same household, even if they haven't been physically evicted. "
+Median Eviction Amount,median_principal,The median dollar amount owed to the landlord by the tenant per Unlawful Detainer case. 
+Rent Exploitation Ratio,exploit,"The ratio of median renter costs among renter-occupied units to median property taxes. The higher the ratio, the greater the renting household is paying compared to the value of the property. "
+Percent Renting Households,pct_rental_units,The percentage of housing units that were renter-occupied between 2018 and 2022. 
+Median Rent,med_gross_rent,The median gross monthly rental amount per unit between 2018 and 2022. 
+Percent Cost-Burdened Renters,pct_burdened,The percentage of renters who pay more than 30% of their income for housing between 2018 and 2022. 
+Percent Poverty,pct_pov,The percentage of households living below the poverty level between 2018 and 2022. 
+Percent White,pct_white,The percentage of the population who identify as white alone between 2018 and 2022. 
+Percent Black,pct_black,The percentage of the population who identify as Black or African American alone between 2018 and 2022. 
+Percent Hispanic or Latino,pct_hispanic,The percentage of the population who identify as Hispanic or Latino between 2018 and 2022. 
+Percent Minoritized,pct_nonwhite,The percentage of the population who do not identify as white alone between 2018 and 2022. 
