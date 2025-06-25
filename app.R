@@ -1,5 +1,7 @@
 # Global ----
 
+library(bslib)
+library(bsplus)
 library(leaflet)
 library(plotly)
 library(reactable)
@@ -16,14 +18,14 @@ my_choices = list(
     "Percent White" = "pct_white",                            
     "Percent Black" = "pct_black",                            
     "Percent Hispanic or Latino" = "pct_hispanic",
-    "Percent Minoritized" = "pct_nonwhite"),           
+    "Percent Minoritized" = "pct_nonwhite",
+    "Rent Exploitation Ratio" = "exploit"),           
   "Eviction Measures" = list(
     "Filing Rate" = "eviction_rate",  
     "Judgment Rate" = "judgment_rate",
     "Percent Filed by Businesses" = "pct_cases_business", 
     "Percent Serial Filings" = "pct_serial",
-    "Proportion of Landlords that Engage in Serial Filing Behavior" = "prop_plaintiff_serial", 
-    "Rent Exploitation Ratio" = "exploit"
+    "Proportion of Landlords that Engage in Serial Filing Behavior" = "prop_plaintiff_serial"
   ))
 
 my_choices_flat = flatten(my_choices)
@@ -57,10 +59,39 @@ ui <- fluidPage(
   titlePanel("Exploring Eviction Geographies"),
   sidebarLayout(
     sidebarPanel(
-      selectInput("yr", "Timeframe:", choices = c("2018-2019", "2020-2021", "2022-2023"), selected = "2022-2023"),
-      selectInput("geo", "Geographic Grouping:", choices = c("Zipcode", "County", "Legal Aid Service Area"), selected = "County"),
-      selectInput("var1", "Exploratory Variable:", choices = my_choices, selected = my_choices[[2]][1]),
-      selectInput("var2", "Comparison Variable:", choices = my_choices, selected = my_choices[[1]][3]),
+      selectInput("yr", "Timeframe:", choices = c("2018-2019", "2020-2021", "2022-2023"), selected = "2022-2023") %>%
+        shinyInput_label_embed(
+          shiny_iconlink() %>%
+            bs_embed_popover(
+              title = "Timeframe", content = "Select one of the three timeframes listed to explore 
+              eviction trends either before, during, or after the COVID epidemic.", placement = "left"
+            )
+        ),
+      selectInput("geo", "Geography:", choices = c("Zipcode", "County", "Legal Aid Service Area"), selected = "County") %>%
+        shinyInput_label_embed(
+          shiny_iconlink() %>%
+            bs_embed_popover(
+              title = "Geography", content = "Select one of the three geographic groupings listed to explore 
+              eviction trends by Zip Code, County, or Legal Aid Service Area.", placement = "left"
+            )
+        ),
+      selectInput("var1", "Exploratory Variable:", choices = my_choices, selected = my_choices[[2]][1]) %>%
+        shinyInput_label_embed(
+          shiny_iconlink() %>%
+            bs_embed_popover(
+              title = "Exploratory Variable", content = "Select one of the measures to explore in the map. 
+              These variables range from population measures from the 2018-2022 American Community Survey to 
+              eviction trends derived from court records.", placement = "left"
+            )
+        ),
+      selectInput("var2", "Outcome Variable:", choices = my_choices, selected = my_choices[[2]][4]) %>%
+        shinyInput_label_embed(
+          shiny_iconlink() %>%
+            bs_embed_popover(
+              title = "Outcome Variable", content = "Select one of the outcome measures to see how it compares to 
+              the exploratory variable selected above. A scatterplot of the two variables is on the second tab.", placement = "left"
+            )
+        ),
       imageOutput("img")),
     mainPanel(
       tabsetPanel(
@@ -68,9 +99,9 @@ ui <- fluidPage(
         tabPanel(
           title = "Explore",
           icon = icon("map"),
+          leafletOutput("map"),
           h4(textOutput("var1", inline = TRUE)),
-          textOutput("def1", inline = TRUE),
-          leafletOutput("map")),
+          textOutput("def1", inline = TRUE)),
         tabPanel(
           title = "Compare", 
           icon = icon("chart-line"),
@@ -85,8 +116,9 @@ ui <- fluidPage(
           h6(textOutput("geo", inline = TRUE)),
           reactableOutput("tbl"),
           downloadButton("downloadData", "Download"))
-        )
-    )))
+      )
+    )),
+  use_bs_popover())
 
 # Server ----
 
@@ -140,7 +172,7 @@ server <- function(input, output, session) {
   })
   
   output$map <- renderLeaflet({
-  
+    
     rv$dat %>%
       st_transform(crs = 4326) %>%
       leaflet() %>%
@@ -153,7 +185,7 @@ server <- function(input, output, session) {
                   fillOpacity = 0.5,
                   popup = paste0("<b>", as.character(names(my_choices_flat[my_choices_flat == input$var1])), ": ", "</b>", rv$pre,
                                  scales::comma(round(rv$dat[[input$var1]], digits = 2)), rv$suf, "<br>",
-                                 "<b>","Total Population: ", "</b>", scales::comma(rv$dat[["total_pop"]]), "<br>",
+                                 "<b>","Rental Units: ", "</b>", scales::comma(rv$dat[["rental_units"]]), "<br>",
                                  "<b>", "Total Eviction Filings: ", "</b>", scales::comma(rv$dat[["total_filed"]]), "<br>",
                                  "<b>", "Region: ", "</b>", rv$dat[["locality"]]),
                   highlightOptions = highlightOptions(
@@ -183,7 +215,7 @@ server <- function(input, output, session) {
     
     plt_median_x <- median(rv$dat[[input$var1]], na.rm = TRUE)
     plt_median_y <- median(rv$dat[[input$var2]], na.rm = TRUE)
-      
+    
     plt_dat <- rv$dat %>%
       filter(rv$dat[[input$var1]] > 0,
              rv$dat[[input$var2]] > 0,
@@ -196,7 +228,7 @@ server <- function(input, output, session) {
                                     ": ", "</b>", rv$pre, scales::comma(round(.data[[input$var1]], digits = 2)), rv$suf, "<br>",
                                     "<b>", names(my_choices_flat[my_choices_flat == input$var2]), 
                                     ": ", "</b>", rv$pre2, scales::comma(round(.data[[input$var2]], digits = 2)), rv$suf2, "<br>",
-                                    "<b>", "Total Population: ", "</b>", scales::comma(total_pop), "<br>",
+                                    "<b>", "Rental Units: ", "</b>", scales::comma(rental_units), "<br>",
                                     "<b>", "Total Eviction Filings: ", "</b>", scales::comma(total_filed), "<br>",
                                     "<b>", "Region: ", "</b>", locality))) +
       geom_hline(aes(yintercept = plt_median_y, text = "State Median"), linetype = "dashed", linewidth = 0.1) +
@@ -209,8 +241,8 @@ server <- function(input, output, session) {
       labs(x = names(my_choices_flat[my_choices_flat == input$var1]),
            y = names(my_choices_flat[my_choices_flat == input$var2]),
            color = "Legal Aid Service Area")
-      
-      ggplotly(plt, tooltip = c("text"))
+    
+    ggplotly(plt, tooltip = c("text"))
     
   })
   
@@ -234,11 +266,11 @@ server <- function(input, output, session) {
              "Immediate Possession" = total_immediate,
              "Cases with Defendent Attorney" = n_d_attorney,
              "Cases Filed by Businesses" = cases_plaintiff_business)
-
-      
+    
+    
   })
   
-    output$geo <- renderText({
+  output$geo <- renderText({
     paste0("Grouped by ", tolower(input$geo))
   })
   
