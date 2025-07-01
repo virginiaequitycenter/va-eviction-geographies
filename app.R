@@ -2,6 +2,7 @@
 
 library(bslib)
 library(bsplus)
+library(bs4Dash)
 library(leaflet)
 library(plotly)
 library(reactable)
@@ -56,7 +57,14 @@ lasa$locality <- lasa$legal_aid_service_area
 # UI ----
 
 ui <- fluidPage(
-  titlePanel("Exploring Eviction Geographies"),
+  titlePanel(tagList(
+    span("Exploring Eviction Geographies", 
+         span(actionButton("instr", "", icon = icon("circle-question")),
+              style = "position:absolute;right:2em;")
+    )
+  ),
+  windowTitle = "Exploring Eviction Geographies"
+  ),
   sidebarLayout(
     sidebarPanel(
       selectInput("yr", "Timeframe:", choices = c("2018-2019", "2020-2021", "2022-2023"), selected = "2022-2023") %>%
@@ -98,16 +106,37 @@ ui <- fluidPage(
         id = "tabset",
         tabPanel(
           title = "Explore",
-          icon = icon("map"),
+          icon = icon("location-dot"),
+          br(),
+          fluidRow(
+            column(
+              width = 2,
+              align = "right",
+              actionButton("mapinstr", "Map Instructions", icon = icon("info-circle"))
+          )),
+          hr(),
           leafletOutput("map"),
-          h4(textOutput("var1", inline = TRUE)),
-          textOutput("def1", inline = TRUE)),
+          hr(),
+          h4(("Variable Definition:")),
+          h5(textOutput("var1", inline = TRUE)),
+          htmlOutput("def1", inline = TRUE),
+          fluidRow()
+          ),
         tabPanel(
           title = "Compare", 
           icon = icon("chart-line"),
+          br(),
+          fluidRow(
+            column(
+              width = 2,
+              align = "right",
+              actionButton("pltinstr", "Plot Instructions", icon = icon("info-circle"))
+            )),
+          hr(),
           h4(textOutput("var2", inline = TRUE)),
           plotlyOutput("plt"),
-          h4(("Variable Definitions")),
+          hr(),
+          h4(("Variable Definitions:")),
           htmlOutput("def2", inline = TRUE)),
         tabPanel(
           title = "Download",
@@ -115,7 +144,10 @@ ui <- fluidPage(
           h4(textOutput("var2b", inline = TRUE)),
           h6(textOutput("geo", inline = TRUE)),
           reactableOutput("tbl"),
-          downloadButton("downloadData", "Download"))
+          downloadButton("downloadData", "Download")),
+        tabPanel(
+          title = "About",
+          icon = icon("lightbulb"))
       )
     )),
   use_bs_popover())
@@ -123,7 +155,55 @@ ui <- fluidPage(
 # Server ----
 
 server <- function(input, output, session) {
+
+# Instruction modals
+  observe({ 
+    showModal( 
+      modalDialog( 
+        title = "Dashboard Instructions", 
+        easy_close = TRUE, 
+        HTML(paste0("Make selections in the sidebar on the left to explore eviction trends in Virginia.", "<br>", "<br>",
+                    "Variables include data related to social and demographic characteristics, eviction outcomes, and landlord behaviors.")),
+        footer = modalButton("Okay"))) 
+  }) %>% 
+    bindEvent(input$instr) 
   
+  observe({ 
+    showModal( 
+      modalDialog( 
+        title = "Map Instructions", 
+        easy_close = TRUE, 
+        HTML(paste0("The map below shows values for the selected ", "<b>", "Exploratory Variable ", "</b>", 
+             "based on the selected ", "<b>", "Geography ", "</b>", "within the selected ", "<b>", "Timeframe", "</b>", ".",
+             "<br>", "<br>", 
+             "Click on the regions to view additional information, such as the name of the region and 
+             the total number of rental units. Zoom in to see specific areas more closely.", "<br>",
+             "<br>", "The definition of the selected variable is printed below the map.")),
+        footer = modalButton("Okay"))) 
+  }) %>% 
+    bindEvent(input$mapinstr) 
+  
+  observe({ 
+    showModal( 
+      modalDialog( 
+        title = "Plot Instructions", 
+        easy_close = TRUE, 
+        HTML(paste0("The scatter plot below shows the relationship between the selected ", "<b>", "Exploratory ", "</b>", "and", "<b>", 
+             " Outcome ", "</b>", "variables during the selected ", "<b>", "Timeframe", "</b>", ".", "<br>", "<br>",
+             "Each circle represents a ", "<b>", "Zip Code", "</b>", ", ", "<b>", "County", "</b>", ", or ", "<b>", "Legal Aid Service Area ", "</b>", 
+             "depending on the selected geographic grouping. The size of each circle  is based on the total number of rental units, with 
+             areas with more renters appearing larger and areas with fewer renters appearing smaller. The color of the circle is based 
+             on the Legal Aid Service Area.", "<br>", "<br>", 
+             "Hover over the circles for more information such as the name of the region and the total number of rental units.", "<br>", "<br>",
+             "To identify possible correlations between two variables, look at the graph and ask: As the value of the Exploratory variable 
+             on the horizontal line increases, does the value of the Outcome variable notably increase or decrease? It can also be useful 
+             to identify certain regions that have extreme values on both measures.", "<br>", "<br>",
+             "The definitions of the selected variables are printed below the plot.")),
+        footer = modalButton("Okay"))) 
+  }) %>% 
+    bindEvent(input$pltinstr) 
+  
+  # Filter data based on user selections
   rv <- reactiveValues()
   observeEvent(c(input$geo, input$yr), {
     if (input$geo == "Zipcode") {
@@ -161,15 +241,20 @@ server <- function(input, output, session) {
   pal <- colorNumeric(palette = "viridis", domain = NULL, reverse = TRUE,
                       na.color = NA)
   
-  output$var1 <- renderText({
-    as.character(names(my_choices_flat[my_choices_flat == input$var1]))
-  })
+  # output$var1 <- renderText({
+  #   as.character(names(my_choices_flat[my_choices_flat == input$var1]))
+  # })
   
   output$geo <- renderText({paste0("Grouped by ", tolower(input$geo))})
   
+  # output$def1 <- renderText({
+  #   as.character(names(defs_choices[defs_choices == input$var1]))
+  # })
+  
   output$def1 <- renderText({
-    as.character(names(defs_choices[defs_choices == input$var1]))
-  })
+    paste0("<b>", as.character(names(my_choices_flat[my_choices_flat == input$var1])), "</b>",
+           ": ", as.character(names(defs_choices[defs_choices == input$var1])))
+    })
   
   output$map <- renderLeaflet({
     
@@ -203,11 +288,11 @@ server <- function(input, output, session) {
   output$var2b <- renderText({ rv$title_str })
   
   output$def2 <- renderText({
-    paste0("<b>", "X Axis - ", as.character(names(my_choices_flat[my_choices_flat == input$var1])), "</b>",
+    paste0("<b>", as.character(names(my_choices_flat[my_choices_flat == input$var1])), "</b>",
            ": ", as.character(names(defs_choices[defs_choices == input$var1])),
            "<br>",
            "<br>",
-           "<b>", "Y Axis - ", as.character(names(my_choices_flat[my_choices_flat == input$var2])), "</b>",
+           "<b>", as.character(names(my_choices_flat[my_choices_flat == input$var2])), "</b>",
            ": ", as.character(names(defs_choices[defs_choices == input$var2])))
   })
   
