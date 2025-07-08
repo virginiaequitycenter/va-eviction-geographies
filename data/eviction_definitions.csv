@@ -1,16 +1,16 @@
 name,variable,definition
-Filing Rate,eviction_rate,The rate of Unlawful Detainer cases filed per rental unit. 
+Filing Rate,eviction_rate,The rate of Unlawful Detainer (eviction) cases filed per rental unit. 
 Judgment Rate,judgment_rate,The rate of Judgments for Possession issued per rental unit. 
-Percent Filed by Businesses,pct_cases_business,The percentage of Unlawful Detainer cases filed by business entities.
+Percent Filed by Businesses,pct_cases_business,The percentage of eviction cases filed by business entities.
 Percent Serial Filings,pct_serial,"The percentage of Unlawful Detainer cases filed that were characterized as being filed multiple times against the same defendants, in the same rental unit, over a 12 month period. "
 Proportion of Landlords that Engage in Serial Filing Behavior,prop_plaintiff_serial,"The proportion of landlords that have engaged in serial filing behavior. Serial eviction filings are characterized by multiple eviction filings against the same household, even if they haven't been physically evicted. "
 Median Eviction Amount,median_principal,The median dollar amount owed to the landlord by the tenant per Unlawful Detainer case. 
 Rent Exploitation Ratio,exploit,"The ratio of median renter costs among renter-occupied units to median property taxes. The higher the ratio, the greater the renting household is paying compared to the value of the property. "
-Percent Renting Households,pct_rental_units,The percentage of housing units that were renter-occupied between 2018 and 2022. 
+Percent Renting Households,pct_rental_units,The percentage of housing units that were renter-occupied. 
 Median Rent,med_gross_rent,The median gross monthly rental amount per unit between 2018 and 2022. 
 Percent Cost-Burdened Renters,pct_burdened,The percentage of renters who pay more than 30% of their income for housing between 2018 and 2022. 
-Percent Poverty,pct_pov,The percentage of households living below the poverty level between 2018 and 2022. 
+Percent Poverty,pct_pov, between 2018 and 2022. 
 Percent White,pct_white,The percentage of the population who identify as white alone between 2018 and 2022. 
-Percent Black,pct_black,The percentage of the population who identify as Black or African American alone between 2018 and 2022. 
+Percent Black,pct_black,The percentage of the population who identify as Black alone between 2018 and 2022. 
 Percent Hispanic or Latino,pct_hispanic,The percentage of the population who identify as Hispanic or Latino between 2018 and 2022. 
 Percent Minoritized,pct_nonwhite,The percentage of the population who do not identify as white alone between 2018 and 2022. 

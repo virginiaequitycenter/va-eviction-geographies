@@ -89,7 +89,7 @@ hud_zips <- read_excel("data/hud_zips.xlsx") %>%
          county_fips = county) %>%
   mutate(approx_city = str_to_title(approx_city),
          county_fips = gsub("^.{0,2}", "", county_fips)) %>%
-  select(zip, approx_city)
+  select(zip, approx_city, county_fips)
 
 # Remove duplicates 
 hud_zips <- hud_zips[!duplicated(hud_zips$zip),]
@@ -132,12 +132,18 @@ zip_data <- zip_data %>%
   mutate(pop_density = total_pop / landarea_sqmi,
          housing_density = housing_units / landarea_sqmi)
 
-# Join with HUD zip dataframe to get approximate city/region
-# Since some zips cross multiple city and county lines, there's not an easy way to associate each zip with a
-# single fips code, so instead we use the approximate city jurisdiction from HUD to provide some geographic
-# context in the app
+# Join with HUD zip dataframe to get approximate city/region:
+# Since some zips cross multiple city, county, and state lines, there's not an easy way to perfectly associate 
+# each zip with a single fips code, so instead we use the "approximate city" jurisdiction from HUD to provide 
+# some geographic context in the app popups. Using the distinct() function earlier, we manually assign each 
+# zip to an approximate fips so that we can associate it with a legal aid service area in the app. 
+
 zip_data <- zip_data %>%
   left_join(hud_zips)
+
+zip_data <- zip_data %>%
+  left_join(legal_aid_service_areas, by = join_by(county_fips == fips)) %>%
+  rename(county_name = locality)
 
 # *Join Census data with Eviction data ----
 # Join pop data with eviction data and calculate eviction rates
@@ -177,18 +183,20 @@ zip_1819 %>%
 # most of the regions where the population or housing & rental units is 0 or NA (why, however
 # are there evictions being filed in these regions if there are no people or rental units though?)
 
-# Anonymous function to keep only regions where the percent rental units is >=5%:
+# Anonymous function to keep only regions where the percent rental units is >=5% and drop regions
+# where there were no evictions filed:
 reduce_data <- . %>%
-  filter(pct_rental_units >= 5)
+  filter(pct_rental_units >= 5,
+         !is.na(eviction_rate))
 
 zip_1819 <- zip_1819 %>%
-  reduce_data() #870 -> 757 obs
+  reduce_data() #870 -> 722 obs
 
 zip_2021 <- zip_2021 %>%
-  reduce_data() #870 -> 757 obs
+  reduce_data() #870 -> 696 obs
 
 zip_2223 <- zip_2223 %>%
-  reduce_data() #879 -> 757 obs
+  reduce_data() #879 -> 721 obs
 
 # *Save ----
 # Individual

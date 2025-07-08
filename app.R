@@ -1,13 +1,11 @@
 # Global ----
 
-#Test
-
 library(bslib)
 library(bsplus)
-library(bs4Dash)
 library(leaflet)
 library(plotly)
 library(reactable)
+library(reactablefmtr)
 library(shiny)
 library(sf)
 library(tidyverse)
@@ -67,6 +65,9 @@ ui <- fluidPage(
   ),
   windowTitle = "Exploring Eviction Geographies"
   ),
+  hr(),
+  fluidRow(column(width = 10, "Visualize and compare eviction trends and landlord behaviors across Virginia.")),
+  br(),
   sidebarLayout(
     sidebarPanel(
       selectInput("yr", "Timeframe:", choices = c("2018-2019", "2020-2021", "2022-2023"), selected = "2022-2023") %>%
@@ -102,13 +103,19 @@ ui <- fluidPage(
               the exploratory variable selected above. A scatterplot of the two variables is on the second tab.", placement = "left"
             )
         ),
-      imageOutput("img")),
+      imageOutput("areas_img")),
     mainPanel(
       tabsetPanel(
         id = "tabset",
         tabPanel(
+          title = "About",
+          icon = icon("lightbulb"),
+          imageOutput("va_img", inline = TRUE),
+          includeMarkdown("about.md"),
+        ),
+        tabPanel(
           title = "Explore",
-          icon = icon("location-dot"),
+          icon = icon("magnifying-glass"),
           br(),
           fluidRow(
             column(
@@ -142,14 +149,15 @@ ui <- fluidPage(
           htmlOutput("def2", inline = TRUE)),
         tabPanel(
           title = "Download",
-          icon = icon("table"),
-          h4(textOutput("var2b", inline = TRUE)),
-          h6(textOutput("geo", inline = TRUE)),
+          icon = icon("download"),
+          h4("Preview:", textOutput("yr", inline = TRUE), "eviction data ", textOutput("geo", inline = TRUE)), 
           reactableOutput("tbl"),
           downloadButton("downloadData", "Download")),
         tabPanel(
-          title = "About",
-          icon = icon("lightbulb"))
+          title = "Data Notes",
+          icon = icon("table"), 
+          includeMarkdown("data_notes.md")
+        )
       )
     )),
   use_bs_popover())
@@ -158,7 +166,8 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
 
-# Instruction modals
+# Instruction modals ----
+  
   observe({ 
     showModal( 
       modalDialog( 
@@ -205,7 +214,23 @@ server <- function(input, output, session) {
   }) %>% 
     bindEvent(input$pltinstr) 
   
-  # Filter data based on user selections
+  # Images ----
+  output$areas_img <- renderImage({
+    list(
+      src = file.path("images/service_areas_full.png"),
+      contentType = "image/png",
+      width = "100%"
+    )
+  }, deleteFile = FALSE)
+  
+  output$va_img <- renderImage({
+    list(src = file.path("images/va5.png"),
+         contentType = "image/png",
+         width = "600px"
+    )
+  }, deleteFile = FALSE)
+  
+  # Data based on user selections ----
   rv <- reactiveValues()
   observeEvent(c(input$geo, input$yr), {
     if (input$geo == "Zipcode") {
@@ -218,6 +243,7 @@ server <- function(input, output, session) {
     rv$dat = rv$dat %>% filter(yrs == input$yr)
   })
   
+  # Definitions, titles, prefixes/suffixes, etc. ----
   observeEvent(c(input$var1, input$var2), {
     rv$title_str = paste0(as.character(names(my_choices_flat[my_choices_flat == input$var1])), " compared to ", 
                           as.character(names(my_choices_flat[my_choices_flat == input$var2])))
@@ -232,31 +258,36 @@ server <- function(input, output, session) {
     if (grepl("med", input$var2)) { rv$pre2 = "$"}
   })
   
-  output$img <- renderImage({
-    list(
-      src = file.path("images/service_areas_full.png"),
-      contentType = "image/png",
-      width = "100%"
-    )
-  }, deleteFile = FALSE)
-  
-  pal <- colorNumeric(palette = "viridis", domain = NULL, reverse = TRUE,
-                      na.color = NA)
-  
-  # output$var1 <- renderText({
-  #   as.character(names(my_choices_flat[my_choices_flat == input$var1]))
-  # })
-  
   output$geo <- renderText({paste0("Grouped by ", tolower(input$geo))})
-  
-  # output$def1 <- renderText({
-  #   as.character(names(defs_choices[defs_choices == input$var1]))
-  # })
   
   output$def1 <- renderText({
     paste0("<b>", as.character(names(my_choices_flat[my_choices_flat == input$var1])), "</b>",
            ": ", as.character(names(defs_choices[defs_choices == input$var1])))
     })
+  
+  output$var2 <- renderText({ rv$title_str })
+  output$var2b <- renderText({ rv$title_str })
+  
+  output$def2 <- renderText({
+    paste0("<b>", as.character(names(my_choices_flat[my_choices_flat == input$var1])), "</b>",
+           ": ", as.character(names(defs_choices[defs_choices == input$var1])),
+           "<br>",
+           "<br>",
+           "<b>", as.character(names(my_choices_flat[my_choices_flat == input$var2])), "</b>",
+           ": ", as.character(names(defs_choices[defs_choices == input$var2])))
+  })
+  
+  output$geo <- renderText({
+    paste0("by ", tolower(input$geo))
+  })
+  
+  output$yr <- renderText({
+    paste0(input$yr)
+  })
+  
+  # Map ----
+  pal <- colorNumeric(palette = "viridis", domain = NULL, reverse = TRUE,
+                      na.color = NA)
   
   output$map <- renderLeaflet({
     
@@ -286,18 +317,7 @@ server <- function(input, output, session) {
                 opacity = 1) 
   })
   
-  output$var2 <- renderText({ rv$title_str })
-  output$var2b <- renderText({ rv$title_str })
-  
-  output$def2 <- renderText({
-    paste0("<b>", as.character(names(my_choices_flat[my_choices_flat == input$var1])), "</b>",
-           ": ", as.character(names(defs_choices[defs_choices == input$var1])),
-           "<br>",
-           "<br>",
-           "<b>", as.character(names(my_choices_flat[my_choices_flat == input$var2])), "</b>",
-           ": ", as.character(names(defs_choices[defs_choices == input$var2])))
-  })
-  
+  # Plot ----
   output$plt <- renderPlotly({
     
     plt_median_x <- median(rv$dat[[input$var1]], na.rm = TRUE)
@@ -318,13 +338,13 @@ server <- function(input, output, session) {
                                     "<b>", "Rental Units: ", "</b>", scales::comma(rental_units), "<br>",
                                     "<b>", "Total Eviction Filings: ", "</b>", scales::comma(total_filed), "<br>",
                                     "<b>", "Region: ", "</b>", locality))) +
-      geom_hline(aes(yintercept = plt_median_y, text = "State Median"), linetype = "dashed", linewidth = 0.1) +
-      geom_vline(aes(xintercept = plt_median_x, text = "State Median"), linetype = "dashed", linewidth = 0.1) +
       geom_point(alpha = 0.5) +
       scale_color_manual(values = my_colors) +
       scale_y_continuous(labels = scales::comma_format(prefix = rv$pre2, suffix = rv$suf2)) +
       scale_x_continuous(labels = scales::comma_format(prefix = rv$pre, suffix = rv$suf)) +
       guides(size = "none") +
+      theme_bw() +
+      theme(legend.position = "bottom") +
       labs(x = names(my_choices_flat[my_choices_flat == input$var1]),
            y = names(my_choices_flat[my_choices_flat == input$var2]),
            color = "Legal Aid Service Area")
@@ -333,94 +353,68 @@ server <- function(input, output, session) {
     
   })
   
-  data <- reactive({
+  # Download----
+  dl <- reactive({
     rv$dat %>%
       as_tibble() %>%
-      select(locality, legal_aid_service_area, total_pop, total_renters, 
-             total_burdened, med_gross_rent, med_hh_income,median_principal, total_filed, 
-             total_default, total_immediate, n_d_attorney,
-             cases_plaintiff_business) %>%
-      rename("Region" = locality,
-             "Service Area" = legal_aid_service_area,
-             "Total Pop." = total_pop,
-             "Rental Pop." = total_renters,
-             "Cost-Burdened Renters" = total_burdened,
-             "Median Rent" = med_gross_rent,
-             "Median Household Income" = med_hh_income,
-             "Median Case Amount" = median_principal,
-             "Evictions Filed" = total_filed,
-             "Default Judgments" = total_default,
-             "Immediate Possession" = total_immediate,
-             "Cases with Defendent Attorney" = n_d_attorney,
-             "Cases Filed by Businesses" = cases_plaintiff_business)
-    
-    
-  })
-  
-  output$geo <- renderText({
-    paste0("Grouped by ", tolower(input$geo))
+      select("Region" = locality, "Total Rental Units" = rental_units, "Percent Renting Households" = pct_rental_units, 
+             "Total Evictions Filed" = total_filed, "Filing Rate" = eviction_rate, "Judgment Rate" = judgment_rate, 
+             "Percent Serial Filings" = pct_serial, "Percent Filed by Businesses" = pct_cases_business, 
+             "Prop. Landlords Engaging in Serial Filing" = prop_plaintiff_serial, 
+             "Median Rent" = med_gross_rent, "Rent Exploitation Ratio" = exploit, "Percent Cost-Burdened Renters" = 
+               pct_burdened, "Percent White" = pct_white, "Percent Black" = pct_black, "Percent Hispanic" = pct_hispanic,  
+             "Percent Minoritized" = pct_nonwhite) 
   })
   
   output$downloadData <- downloadHandler(
     filename = function() {
       # Use the selected dataset as the suggested file name
-      paste0("evictions_zipcode_", Sys.Date(), ".csv")
+      paste0("evictions_", gsub("-", "_", input$yr), "_by_", tolower(input$geo), ".csv")
     },
     content = function(file) {
       # Write the dataset to the `file` that will be downloaded
-      write.csv(data(), file)
+      write.csv(dl(), file)
     }
   )
   
+  # Build table ---- 
   output$tbl <- renderReactable(
-    
-    tbl <- rv$dat %>%
+  
+    rv$dat %>%
       as_tibble() %>%
-      select(locality, legal_aid_service_area, total_pop, total_renters, 
-             total_burdened, med_gross_rent, med_hh_income,median_principal, total_filed, 
-             total_default, total_immediate, n_d_attorney,
-             cases_plaintiff_business) %>%
-      rename("Region" = locality,
-             "Service Area" = legal_aid_service_area,
-             "Total Pop." = total_pop,
-             "Rental Pop." = total_renters,
-             "Cost-Burdened Renters" = total_burdened,
-             "Median Rent" = med_gross_rent,
-             "Median Household Income" = med_hh_income,
-             "Median Case Amount" = median_principal,
-             "Evictions Filed" = total_filed,
-             "Default Judgments" = total_default,
-             "Immediate Possession" = total_immediate,
-             "Cases with Defendent Attorney" = n_d_attorney,
-             "Cases Filed by Businesses" = cases_plaintiff_business) %>%
+      select("Region" = locality, "Total Rental Units" = rental_units, "Percent Renting Households" = pct_rental_units, 
+             "Total Evictions Filed" = total_filed, "Filing Rate" = eviction_rate, "Judgment Rate" = judgment_rate, 
+             "Percent Serial Filings" = pct_serial, "Percent Filed by Businesses" = pct_cases_business, 
+             "Prop. Landlords Engaging in Serial Filing" = prop_plaintiff_serial, 
+             "Median Rent" = med_gross_rent, "Rent Exploitation Ratio" = exploit, "Percent Cost-Burdened Renters" = 
+             pct_burdened, "Percent White" = pct_white, "Percent Black" = pct_black, "Percent Hispanic" = pct_hispanic,  
+             "Percent Minoritized" = pct_nonwhite) %>%
       reactable(
         defaultColDef = colDef(
           align = "center",
           defaultSortOrder = "desc",
           headerStyle = list(background = "#f7f7f8"),
-          format = colFormat(separators = TRUE)),
-        defaultSorted = list(`Rental Pop.` = "desc"),
-        filterable = TRUE,
+          format = colFormat(separators = TRUE, digits = 2),
+          na = "NA"),
+        defaultSorted = list(`Filing Rate` = "desc"),
         searchable = TRUE,
         columns = list(
-          `Zipcode` = colDef(format = colFormat(separators = FALSE)),
-          `Median Rent` = colDef(format = colFormat(prefix = "$", digits = 2)),
-          `Median Household Income` = colDef(format = colFormat(prefix = "$", digits = 2)),
-          `Median Case Amount` = colDef(format = colFormat(prefix = "$", digits = 2))),
+          `Median Rent` = colDef(format = colFormat(prefix = "$", digits = 2, separators = TRUE)),
+          `Percent Renting Households` = colDef(format = colFormat(suffix = "%", digits = 1)),
+          `Percent Serial Filings` = colDef(format = colFormat(suffix = "%", digits = 1)),
+          `Percent Filed by Businesses` = colDef(format = colFormat(suffix = "%", digits = 1)),
+          `Percent Cost-Burdened Renters` = colDef(format = colFormat(suffix = "%", digits = 1)),
+          `Percent White` = colDef(format = colFormat(suffix = "%", digits = 1)),
+          `Percent Black` = colDef(format = colFormat(suffix = "%", digits = 1)),
+          `Percent Hispanic` = colDef(format = colFormat(suffix = "%", digits = 1)),
+          `Percent Minoritized` = colDef(format = colFormat(suffix = "%", digits = 1)),
+          `Total Rental Units` = colDef(format = colFormat(digits = 0, separators = TRUE)),
+          `Total Evictions Filed` = colDef(format = colFormat(digits = 0, separators = TRUE))),
         bordered = TRUE,
         highlight = TRUE,
-        defaultPageSize = 5
-        
-      )
+        defaultPageSize = 7
+      ) 
   )
-  
-  output$process <- renderImage({
-    list(
-      src = file.path("images/process.png"),
-      contentType = "image/png",
-      width = "80%"
-    )
-  }, deleteFile = FALSE)
 }
 
 shinyApp(ui, server)
