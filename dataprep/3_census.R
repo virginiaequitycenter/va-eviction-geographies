@@ -59,7 +59,7 @@ derive_pops <- . %>%
     pct_rental_units = (rental_units/housing_units) * 100,
     total_burdened = rent30 + rent35 + rent40 + rent50,
     pct_burdened = case_when(
-      total_pop > 0 ~ (total_burdened/total_pop) * 100,
+      total_pop > 0 ~ (total_burdened/rental_units) * 100,
       TRUE ~ 0),
     exploit = med_gross_rent / med_tax,
     exploit_MOE = moe_ratio(med_gross_rent, med_tax, med_gross_rent_MOE, med_tax_MOE),
