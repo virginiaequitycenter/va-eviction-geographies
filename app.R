@@ -10,7 +10,15 @@ library(shiny)
 library(sf)
 library(tidyverse)
 
+# Setup
 my_choices = list(
+  "Eviction Measures" = list(
+    "Filing Rate" = "eviction_rate",  
+    "Eviction Judgment Rate" = "judgment_rate",
+    "Percent Filed by Businesses" = "pct_cases_business", 
+    "Percent Serial Filings" = "pct_serial",
+    "Percent Default Rulings" = "pct_default"
+  ),
   "Population Measures (2018-2022 ACS)" = list(
     "Percent Renting Households" = "pct_rental_units",        
     "Median Rent" = "med_gross_rent",                             
@@ -20,14 +28,9 @@ my_choices = list(
     "Percent Black" = "pct_black",                            
     "Percent Hispanic or Latino" = "pct_hispanic",
     "Percent Minoritized" = "pct_nonwhite",
-    "Rent Exploitation Ratio" = "exploit"),           
-  "Eviction Measures" = list(
-    "Filing Rate" = "eviction_rate",  
-    "Judgment Rate" = "judgment_rate",
-    "Percent Filed by Businesses" = "pct_cases_business", 
-    "Percent Serial Filings" = "pct_serial",
-    "Proportion of Landlords that Engage in Serial Filing Behavior" = "prop_plaintiff_serial"
-  ))
+    "Rent Exploitation Ratio" = "exploit",
+    "Population Density" = "pop_density")           
+  )
 
 my_choices_flat = flatten(my_choices)
 
@@ -39,6 +42,12 @@ my_colors <- c("Southwest Virginia Legal Aid Society" = "#E31A1C",
                "Legal Services of Northern Virginia" = "#FF7F00",
                "Legal Aid Works" = "#FB9A99",
                "Legal Aid Society of Eastern Virginia" = "#A6CEE3")
+
+my_years <- list(
+  "2018-2019 (pre-COVID)" = "2018-2019", 
+  "2020-2021 (COVID)" = "2020-2021", 
+  "2022-2023 (post-COVID)" = "2022-2023"
+  )
 
 # Read data 
 zip <- readRDS("data/app_data/zip.RDS") 
@@ -70,12 +79,12 @@ ui <- fluidPage(
   br(),
   sidebarLayout(
     sidebarPanel(
-      selectInput("yr", "Timeframe:", choices = c("2018-2019", "2020-2021", "2022-2023"), selected = "2022-2023") %>%
+      selectInput("yr", "Timeframe:", choices = my_years, selected = my_years[[3]]) %>%
         shinyInput_label_embed(
           shiny_iconlink() %>%
             bs_embed_popover(
               title = "Timeframe", content = "Select one of the three timeframes listed to explore 
-              eviction trends either before, during, or after the COVID epidemic.", placement = "left"
+              eviction trends either before, during, or after the COVID epidemic.", placement = "left", trigger = "focus"
             )
         ),
       selectInput("geo", "Geography:", choices = c("Zipcode", "County", "Legal Aid Service Area"), selected = "County") %>%
@@ -83,24 +92,24 @@ ui <- fluidPage(
           shiny_iconlink() %>%
             bs_embed_popover(
               title = "Geography", content = "Select one of the three geographic groupings listed to explore 
-              eviction trends by Zip Code, County, or Legal Aid Service Area.", placement = "left"
+              eviction trends by Zip Code, County, or Legal Aid Service Area.", placement = "left", trigger = "focus"
             )
         ),
-      selectInput("var1", "Exploratory Variable:", choices = my_choices, selected = my_choices[[2]][1]) %>%
+      selectInput("var1", "Variable to Map:", choices = my_choices, selected = my_choices[[1]][1]) %>%
         shinyInput_label_embed(
           shiny_iconlink() %>%
             bs_embed_popover(
-              title = "Exploratory Variable", content = "Select one of the measures to explore in the map. 
+              title = "Variable to Map", content = "Select one of the measures to explore in the map. 
               These variables range from population measures from the 2018-2022 American Community Survey to 
-              eviction trends derived from court records.", placement = "left"
+              eviction trends derived from court records.", placement = "left", trigger = "focus"
             )
         ),
-      selectInput("var2", "Outcome Variable:", choices = my_choices, selected = my_choices[[2]][4]) %>%
+      selectInput("var2", "Variable to Compare:", choices = my_choices[[2]], selected = my_choices[[2]][4]) %>%
         shinyInput_label_embed(
           shiny_iconlink() %>%
             bs_embed_popover(
-              title = "Outcome Variable", content = "Select one of the outcome measures to see how it compares to 
-              the exploratory variable selected above. A scatterplot of the two variables is on the second tab.", placement = "left"
+              title = "Variable to Compare", content = "Select a measure to see it's relationship to the variable being mapped. 
+              A scatterplot of two variables is on the second tab.", placement = "left", trigger = "focus"
             )
         ),
       imageOutput("areas_img")),
@@ -358,12 +367,12 @@ server <- function(input, output, session) {
     rv$dat %>%
       as_tibble() %>%
       select("Region" = locality, "Total Rental Units" = rental_units, "Percent Renting Households" = pct_rental_units, 
-             "Total Evictions Filed" = total_filed, "Filing Rate" = eviction_rate, "Judgment Rate" = judgment_rate, 
+             "Total Evictions Filed" = total_filed, "Filing Rate" = eviction_rate, "Eviction Judgment Rate" = judgment_rate, 
              "Percent Serial Filings" = pct_serial, "Percent Filed by Businesses" = pct_cases_business, 
-             "Prop. Landlords Engaging in Serial Filing" = prop_plaintiff_serial, 
+             "Percent Default Rulings" = pct_default, 
              "Median Rent" = med_gross_rent, "Rent Exploitation Ratio" = exploit, "Percent Cost-Burdened Renters" = 
                pct_burdened, "Percent White" = pct_white, "Percent Black" = pct_black, "Percent Hispanic" = pct_hispanic,  
-             "Percent Minoritized" = pct_nonwhite) 
+             "Percent Minoritized" = pct_nonwhite, "Population Density" = pop_density) 
   })
   
   output$downloadData <- downloadHandler(
@@ -383,12 +392,12 @@ server <- function(input, output, session) {
     rv$dat %>%
       as_tibble() %>%
       select("Region" = locality, "Total Rental Units" = rental_units, "Percent Renting Households" = pct_rental_units, 
-             "Total Evictions Filed" = total_filed, "Filing Rate" = eviction_rate, "Judgment Rate" = judgment_rate, 
+             "Total Evictions Filed" = total_filed, "Filing Rate" = eviction_rate, "Eviction Judgment Rate" = judgment_rate, 
              "Percent Serial Filings" = pct_serial, "Percent Filed by Businesses" = pct_cases_business, 
-             "Prop. Landlords Engaging in Serial Filing" = prop_plaintiff_serial, 
+             "Percent Default Rulings" = pct_default, 
              "Median Rent" = med_gross_rent, "Rent Exploitation Ratio" = exploit, "Percent Cost-Burdened Renters" = 
              pct_burdened, "Percent White" = pct_white, "Percent Black" = pct_black, "Percent Hispanic" = pct_hispanic,  
-             "Percent Minoritized" = pct_nonwhite) %>%
+             "Percent Minoritized" = pct_nonwhite, "Population Density" = pop_density) %>%
       reactable(
         defaultColDef = colDef(
           align = "center",
@@ -403,13 +412,15 @@ server <- function(input, output, session) {
           `Percent Renting Households` = colDef(format = colFormat(suffix = "%", digits = 1)),
           `Percent Serial Filings` = colDef(format = colFormat(suffix = "%", digits = 1)),
           `Percent Filed by Businesses` = colDef(format = colFormat(suffix = "%", digits = 1)),
+          `Percent Default Rulings` = colDef(format = colFormat(suffix = "%", digits = 1)),
           `Percent Cost-Burdened Renters` = colDef(format = colFormat(suffix = "%", digits = 1)),
           `Percent White` = colDef(format = colFormat(suffix = "%", digits = 1)),
           `Percent Black` = colDef(format = colFormat(suffix = "%", digits = 1)),
           `Percent Hispanic` = colDef(format = colFormat(suffix = "%", digits = 1)),
           `Percent Minoritized` = colDef(format = colFormat(suffix = "%", digits = 1)),
           `Total Rental Units` = colDef(format = colFormat(digits = 0, separators = TRUE)),
-          `Total Evictions Filed` = colDef(format = colFormat(digits = 0, separators = TRUE))),
+          `Total Evictions Filed` = colDef(format = colFormat(digits = 0, separators = TRUE)),
+          `Population Density` = colDef(format = colFormat(digits = 0, separators = TRUE))),
         bordered = TRUE,
         highlight = TRUE,
         defaultPageSize = 7

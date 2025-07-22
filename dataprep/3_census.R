@@ -67,16 +67,16 @@ derive_pops <- . %>%
     pct_students = ((undergrad_pop + grad_pop)/total_pop) * 100,
     pct_nonwhite = 100 - pct_white)
 
-# Anonymous function to calculate eviction and judgment rates: 
+# Anonymous function to calculate eviction and judgment rates per 100 units : 
 calculate_evictions <- . %>%
   mutate(
     #Total filed per rental unit
     eviction_rate = case_when(
-      rental_units > 0 ~ total_filed/rental_units,
+      rental_units > 0 ~ (total_filed/rental_units) * 100,
       TRUE ~ NA),
     #Judgments per rental unit
     judgment_rate = case_when(
-      rental_units > 0 ~ (n_judgment/rental_units),
+      rental_units > 0 ~ (n_judgment/rental_units) * 100,
       TRUE ~ NA))
 
 # Read geographies ----

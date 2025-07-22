@@ -122,7 +122,9 @@ summarize_evictions <- function(df, grouper) {
       # Percent of cases that went to judgment
       pct_judgment = ((n_judgment / total_filed) * 100),
       # Proportion of plaintiffs that engage in serial filing behavior
-      prop_plaintiff_serial = n_plaintiffs_serial / total_plaintiffs)
+      prop_plaintiff_serial = n_plaintiffs_serial / total_plaintiffs,
+      # Percent default 
+      pct_default = ((n_default / total_filed) * 100))
   assign("evictions_summary", evictions_summary, .GlobalEnv)
 
 }
