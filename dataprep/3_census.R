@@ -18,7 +18,8 @@ rename_variables <- . %>%
          undergrad_pop = "B14001_008E", # total undergrad population
          grad_pop = "B14001_009E", # total grad school population
          housing_units = "B25002_001E", # total occupied housing units 
-         rental_units = "B25003_003E", # total renter-occupied housing units 
+         rental_units = "B25003_003E", # (Tenure: total renter-occupied housing units)
+         rental_pop = "B25008_003E", # (Pop: total pop of renter-occupied housing units)
          pct_pov = "S1701_C03_001E", # poverty rate
          med_hh_income = "S1901_C01_012E", # median household income 
          rent30 = "B25070_007E", # N renters with 30-34.9% of income to rent 
@@ -41,6 +42,7 @@ vars <- c("B01003_001",    # total pop
           "B14001_008", "B14001_009",   # total college student pop
           "B25002_001",    # total housing units
           "B25003_003",    # total renter-occupied units
+          "B25008_003",    # total pop of renter-occupied units 
           "S1701_C03_001", # pov rate
           "S1901_C01_012", # med hh income
           "B25070_007", "B25070_008", "B25070_009", "B25070_010", # rent burden
@@ -49,7 +51,7 @@ vars <- c("B01003_001",    # total pop
           "B25103_001",    # med tax
           "B07013_009", "B07013_012", "B07013_015", "B07013_018") # residential mobility
 
-# Residential mobility = # of renters that moved / total renter-occupied households 
+# Residential mobility = # of renters that moved / total renter population (B25008_003)
 # Population density = total population / land area in square miles 
 # Housing density = total occupied housing units / land area in square miles 
 
@@ -63,7 +65,7 @@ derive_pops <- . %>%
       TRUE ~ 0),
     exploit = med_gross_rent / med_tax,
     exploit_MOE = moe_ratio(med_gross_rent, med_tax, med_gross_rent_MOE, med_tax_MOE),
-    mobility_rate = ((moved_county + moved_va + moved_otherstate + moved_abroad)/rental_units),
+    mobility_rate = ((moved_county + moved_va + moved_otherstate + moved_abroad)/rental_pop),
     pct_students = ((undergrad_pop + grad_pop)/total_pop) * 100,
     pct_nonwhite = 100 - pct_white)
 
@@ -327,7 +329,7 @@ lasa_data <- tmp_lasa %>%
       TRUE ~ 0),
     exploit = med_gross_rent / med_tax,
     exploit_MOE = moe_ratio(med_gross_rent, med_tax, med_gross_rent_MOE, med_tax_MOE),
-    mobility_rate = ((moved_county + moved_va + moved_otherstate + moved_abroad)/rental_units),
+    mobility_rate = ((moved_county + moved_va + moved_otherstate + moved_abroad)/rental_pop),
     pct_students = ((undergrad_pop + grad_pop)/total_pop) * 100,
     pct_nonwhite = 100 - pct_white,
     pop_density = total_pop / landarea_sqmi,

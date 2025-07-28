@@ -29,7 +29,8 @@ my_choices = list(
     "Percent Hispanic or Latino" = "pct_hispanic",
     "Percent Minoritized" = "pct_nonwhite",
     "Rent Exploitation Ratio" = "exploit",
-    "Population Density" = "pop_density")           
+    "Population Density" = "pop_density",
+    "Mobility Rate" = "mobility_rate")           
   )
 
 my_choices_flat = flatten(my_choices)
@@ -104,7 +105,7 @@ ui <- fluidPage(
               eviction trends derived from court records.", placement = "left", trigger = "focus"
             )
         ),
-      selectInput("var2", "Variable to Compare:", choices = my_choices[[2]], selected = my_choices[[2]][4]) %>%
+      selectInput("var2", "Variable to Compare:", choices = my_choices[2], selected = my_choices[[2]][4]) %>%
         shinyInput_label_embed(
           shiny_iconlink() %>%
             bs_embed_popover(
@@ -116,12 +117,6 @@ ui <- fluidPage(
     mainPanel(
       tabsetPanel(
         id = "tabset",
-        tabPanel(
-          title = "About",
-          icon = icon("lightbulb"),
-          imageOutput("va_img", inline = TRUE),
-          includeMarkdown("about.md"),
-        ),
         tabPanel(
           title = "Explore",
           icon = icon("magnifying-glass"),
@@ -162,6 +157,12 @@ ui <- fluidPage(
           h4("Preview:", textOutput("yr", inline = TRUE), "eviction data ", textOutput("geo", inline = TRUE)), 
           reactableOutput("tbl"),
           downloadButton("downloadData", "Download")),
+        tabPanel(
+          title = "About",
+          icon = icon("lightbulb"),
+          imageOutput("va_img", inline = TRUE),
+          includeMarkdown("about.md"),
+        ),
         tabPanel(
           title = "Data Notes",
           icon = icon("table"), 
