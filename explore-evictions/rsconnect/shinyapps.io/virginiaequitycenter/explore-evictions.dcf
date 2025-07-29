@@ -1,0 +1,12 @@
+name: explore-evictions
+title: explore-evictions
+username: virginiaequitycenter
+account: virginiaequitycenter
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 15138109
+bundleId: 10694834
+url: https://virginiaequitycenter.shinyapps.io/explore-evictions/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE

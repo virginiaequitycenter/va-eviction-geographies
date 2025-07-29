@@ -3,6 +3,7 @@
 library(bslib)
 library(bsplus)
 library(leaflet)
+library(markdown)
 library(plotly)
 library(reactable)
 library(reactablefmtr)
@@ -54,10 +55,10 @@ my_years <- list(
   "2022-2023 (post-COVID)" = "2022-2023")
 
 # Read data 
-zip <- readRDS("data/app_data/zip.RDS") 
-county <- readRDS("data/app_data/county.RDS")
-lasa <- readRDS("data/app_data/lasa.RDS")
-defs <- read_csv("data/eviction_definitions.csv")
+zip <- readRDS("zip.RDS") 
+county <- readRDS("county.RDS")
+lasa <- readRDS("lasa.RDS")
+defs <- read_csv("eviction_definitions.csv")
 
 defs_choices <- defs$variable %>%
   set_names(defs$definition)
@@ -236,14 +237,14 @@ server <- function(input, output, session) {
   # Images ----
   output$areas_img <- renderImage({
     list(
-      src = file.path("images/service_areas_full.png"),
+      src = file.path("service_areas_full.png"),
       contentType = "image/png",
       width = "100%"
     )
   }, deleteFile = FALSE)
   
   output$va_img <- renderImage({
-    list(src = file.path("images/va5.png"),
+    list(src = file.path("va5.png"),
          contentType = "image/png",
          width = "600px"
     )
