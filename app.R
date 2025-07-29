@@ -10,7 +10,11 @@ library(shiny)
 library(sf)
 library(tidyverse)
 
-# Setup
+# Read in HTML
+header <- HTML(readLines("html/header"))
+footer <- HTML(readLines("html/footer"))
+
+# Setup variables 
 my_choices = list(
   "Eviction Measures" = list(
     "Filing Rate" = "eviction_rate",  
@@ -47,8 +51,7 @@ my_colors <- c("Southwest Virginia Legal Aid Society" = "#E31A1C",
 my_years <- list(
   "2018-2019 (pre-COVID)" = "2018-2019", 
   "2020-2021 (COVID)" = "2020-2021", 
-  "2022-2023 (post-COVID)" = "2022-2023"
-  )
+  "2022-2023 (post-COVID)" = "2022-2023")
 
 # Read data 
 zip <- readRDS("data/app_data/zip.RDS") 
@@ -67,6 +70,8 @@ lasa$locality <- lasa$legal_aid_service_area
 # UI ----
 
 ui <- fluidPage(
+  includeCSS("www/styles.css"),
+  uiOutput("header"),
   titlePanel(tagList(
     span("Exploring Eviction Geographies", 
          span(actionButton("instr", "", icon = icon("circle-question")),
@@ -170,11 +175,15 @@ ui <- fluidPage(
         )
       )
     )),
-  use_bs_popover())
+  use_bs_popover(),
+  uiOutput("footer"))
 
 # Server ----
 
 server <- function(input, output, session) {
+  
+  output$header <- renderUI(header)
+  output$footer <- renderUI(footer)
 
 # Instruction modals ----
   

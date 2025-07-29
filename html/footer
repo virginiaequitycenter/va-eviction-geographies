@@ -1,0 +1,11 @@
+<footer class="footer">
+  <div class="footer-content">
+    The Virginia Housing Justice Atlas is a collaboration between the RVA Eviction Lab in the Wilder School of Government and Public Affairs at VCU, the Center for Community Partnerships at UVA, and the UVA Library StatLab.
+  </div>
+    <a href="https://communitypartnerships.virginia.edu/" target="_blank"><img class="logos ec-logo" src="CCP-logo-white.png" alt="UVA Center for Community Partnerships" height="55"></img></a>
+    <a href="https://rampages.us/rvaevictionlab/" target="_blank"><img class="logos" src="rvalogo-removebg.png" alt="RVA Eviction Lab" height="50"></img></a>
+    <a href="https://data.library.virginia.edu/statlab/" target="_blank"><img class="logos" src="StatLab_logo_dark_background.png" alt="UVA Library StatLab" height="55"></img></a>
+<div class="footer-content">
+<a href="https://github.com/virginiaequitycenter/va-eviction-geographies" target="_blank"><img src="GitHub-Mark-Light-64px.png" alt="Source on GitHub" width = "26" height = "26"/></a>
+</div>
+</footer>
