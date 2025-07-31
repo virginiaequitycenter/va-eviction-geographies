@@ -36,7 +36,7 @@ For each geography and time frame grouping the data reports:
 -   **Percent Hispanic**: the percentage of the population who identify as Hispanic or Latino.
 -   **Percent Minoritized**: the percentage of the population who do not identify as white alone.
 -   **Population Density**: the estimated number of people inhabiting each square mile of land area.
--   **Mobility Rate**: the estimated percent of renters that moved residences within 12 months.
+-   **Mobility Rate**: the estimated percent of renters that moved residences within the previous 12 months.
 
 #### A Note on Court/County Jurisdictions
 

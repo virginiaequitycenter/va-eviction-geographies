@@ -65,7 +65,7 @@ derive_pops <- . %>%
       TRUE ~ 0),
     exploit = med_gross_rent / med_tax,
     exploit_MOE = moe_ratio(med_gross_rent, med_tax, med_gross_rent_MOE, med_tax_MOE),
-    mobility_rate = ((moved_county + moved_va + moved_otherstate + moved_abroad)/rental_pop),
+    pct_mobile = ((moved_county + moved_va + moved_otherstate + moved_abroad)/rental_pop) * 100,
     pct_students = ((undergrad_pop + grad_pop)/total_pop) * 100,
     pct_nonwhite = 100 - pct_white)
 
@@ -217,7 +217,7 @@ zip_2223 <- zip_2223 %>%
   mutate(yrs = "2022-2023")
 
 zip <- bind_rows(zip_1819, zip_2021, zip_2223)
-saveRDS(zip, "data/app_data/zip.RDS")
+saveRDS(zip, "explore-evictions/data/zip.RDS")
 
 # County level ----
 # Get census info
@@ -307,7 +307,7 @@ county_2223 <- county_2223 %>%
   mutate(yrs = "2022-2023")
 
 county <- bind_rows(county_1819, county_2021, county_2223)
-saveRDS(county, "data/app_data/county.RDS")
+saveRDS(county, "explore-evictions/data/county.RDS")
 
 # Legal Aid Service Area level ----
 # Use county-level census info to calculate population variables for service areas
@@ -378,4 +378,4 @@ lasa_2223 <- lasa_2223 %>%
   mutate(yrs = "2022-2023")
 
 lasa <- bind_rows(lasa_1819, lasa_2021, lasa_2223)
-saveRDS(lasa, "data/app_data/lasa.RDS")
+saveRDS(lasa, "explore-evictions/data/lasa.RDS")

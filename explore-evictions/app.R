@@ -35,7 +35,7 @@ my_choices = list(
     "Percent Minoritized" = "pct_nonwhite",
     "Rent Exploitation Ratio" = "exploit",
     "Population Density" = "pop_density",
-    "Mobility Rate" = "mobility_rate")           
+    "Mobility Rate" = "pct_mobile")           
   )
 
 my_choices_flat = flatten(my_choices)
@@ -55,9 +55,9 @@ my_years <- list(
   "2022-2023 (post-COVID)" = "2022-2023")
 
 # Read data 
-zip <- readRDS("zip.RDS") 
-county <- readRDS("county.RDS")
-lasa <- readRDS("lasa.RDS")
+zip <- readRDS("data/zip.RDS") 
+county <- readRDS("data/county.RDS")
+lasa <- readRDS("data/lasa.RDS")
 defs <- read_csv("eviction_definitions.csv")
 
 defs_choices <- defs$variable %>%
@@ -383,7 +383,7 @@ server <- function(input, output, session) {
              "Percent Default Rulings" = pct_default, 
              "Median Rent" = med_gross_rent, "Rent Exploitation Ratio" = exploit, "Percent Cost-Burdened Renters" = 
                pct_burdened, "Percent White" = pct_white, "Percent Black" = pct_black, "Percent Hispanic" = pct_hispanic,  
-             "Percent Minoritized" = pct_nonwhite, "Population Density" = pop_density) 
+             "Percent Minoritized" = pct_nonwhite, "Population Density" = pop_density, "Mobility Rate" = pct_mobile) 
   })
   
   output$downloadData <- downloadHandler(
@@ -408,7 +408,7 @@ server <- function(input, output, session) {
              "Percent Default Rulings" = pct_default, 
              "Median Rent" = med_gross_rent, "Rent Exploitation Ratio" = exploit, "Percent Cost-Burdened Renters" = 
              pct_burdened, "Percent White" = pct_white, "Percent Black" = pct_black, "Percent Hispanic" = pct_hispanic,  
-             "Percent Minoritized" = pct_nonwhite, "Population Density" = pop_density) %>%
+             "Percent Minoritized" = pct_nonwhite, "Population Density" = pop_density, "Mobility Rate" = pct_mobile) %>%
       reactable(
         defaultColDef = colDef(
           align = "center",
@@ -431,7 +431,8 @@ server <- function(input, output, session) {
           `Percent Minoritized` = colDef(format = colFormat(suffix = "%", digits = 1)),
           `Total Rental Units` = colDef(format = colFormat(digits = 0, separators = TRUE)),
           `Total Evictions Filed` = colDef(format = colFormat(digits = 0, separators = TRUE)),
-          `Population Density` = colDef(format = colFormat(digits = 0, separators = TRUE))),
+          `Population Density` = colDef(format = colFormat(digits = 0, separators = TRUE)),
+          `Mobility Rate` = colDef(format = colFormat(suffix = "%", digits = 1))),
         bordered = TRUE,
         highlight = TRUE,
         defaultPageSize = 7

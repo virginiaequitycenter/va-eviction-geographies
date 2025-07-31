@@ -15,4 +15,4 @@ Percent Black,pct_black,The percentage of the population who identify as Black o
 Percent Hispanic or Latino,pct_hispanic,The percentage of the population who identify as Hispanic or Latino per the 2018-2022 American Community Survey. 
 Percent Minoritized,pct_nonwhite,The percentage of the population who do not identify as white alone per the 2018-2022 American Community Survey. 
 Population Density,pop_density,The estimated number of people inhabiting each square mile of land per the 2018-2022 American Community Survey. 
-Mobility Rate,mobility_rate,The estimated percent of renters that moved residences within 12 months per the 2018-2022 American Community Survey. 
+Mobility Rate,pct_mobile,The estimated percent of renters that moved residences within the previous 12 months per the 2018-2022 American Community Survey. 
