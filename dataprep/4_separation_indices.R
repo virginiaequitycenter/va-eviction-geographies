@@ -77,11 +77,8 @@ dissim_wh <- seg_tract2 %>%
 dissim <- left_join(dissim_wb, dissim_wh, by = c("county_collapsed"))
 
 # Save collapsed data
-write_csv(dissim, "data/dissim23_collapsed.csv")
+write_csv(dissim, "modeling/dissim23_collapsed.csv")
 
-
-# Save
-write_csv(dissim, "data/dissimilarity_23.csv")
 
 # 2019 ----
 # Get tract-level info:
@@ -157,7 +154,7 @@ dissim_wh <- seg_tract19 %>%
 dissim <- left_join(dissim_wb, dissim_wh, by = c("county_collapsed"))
 
 # Save collapsed data
-write_csv(dissim, "data/dissim19_collapsed.csv")
+write_csv(dissim, "modeling/dissim19_collapsed.csv")
 
 ----
 
