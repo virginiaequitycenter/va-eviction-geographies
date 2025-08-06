@@ -204,7 +204,7 @@ server <- function(input, output, session) {
       modalDialog( 
         title = "Map Instructions", 
         easy_close = TRUE, 
-        HTML(paste0("The map below shows values for the selected ", "<b>", "Exploratory Variable ", "</b>", 
+        HTML(paste0("The map below shows values for the selected ", "<b>", "Mapping Variable ", "</b>", 
              "based on the selected ", "<b>", "Geography ", "</b>", "within the selected ", "<b>", "Timeframe", "</b>", ".",
              "<br>", "<br>", 
              "Click on the regions to view additional information, such as the name of the region and 
@@ -219,8 +219,8 @@ server <- function(input, output, session) {
       modalDialog( 
         title = "Plot Instructions", 
         easy_close = TRUE, 
-        HTML(paste0("The scatter plot below shows the relationship between the selected ", "<b>", "Exploratory ", "</b>", "and", "<b>", 
-             " Outcome ", "</b>", "variables during the selected ", "<b>", "Timeframe", "</b>", ".", "<br>", "<br>",
+        HTML(paste0("The scatter plot below shows the relationship between the selected ", "<b>", "Mapping ", "</b>", "and", "<b>", 
+             " Comparison ", "</b>", "variables during the selected ", "<b>", "Timeframe", "</b>", ".", "<br>", "<br>",
              "Each circle represents a ", "<b>", "Zip Code", "</b>", ", ", "<b>", "County", "</b>", ", or ", "<b>", "Legal Aid Service Area ", "</b>", 
              "depending on the selected geographic grouping. The size of each circle  is based on the total number of rental units, with 
              areas with more renters appearing larger and areas with fewer renters appearing smaller. The color of the circle is based 
