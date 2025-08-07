@@ -1,0 +1,33 @@
+---
+title: "Housing Justice Reading List"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+An ongoing collection of background reading materials pertaining to housing justice.
+
+## Rent Exploitation
+
+- [Do the Poor Pay More for Housing? Exploitation, Profit, and Risk in Rental Markets](https://www.journals.uchicago.edu/doi/10.1086/701697)
+
+- Crowell: [Renting Under Racial Capitalism: Residential Segregation and Rent Exploitation in the United States](https://drive.google.com/file/d/15aOEkc6I2TFdSgUmg_u8dCJmMVO-6Fgs/view), 2022
+
+## Eviction
+
+- [Eviction and the Reproduction of Urban Poverty](https://www.journals.uchicago.edu/doi/full/10.1086/666082)
+
+
+## Social Structures 
+
+- [Organized abandonment under racial capitalism: Measuring accountable actors of structural racism for public health research and action](https://www.sciencedirect.com/science/article/abs/pii/S0277953624000200)
+
+
+## Research Methodology
+
+- Fosset & Crowell: [Racial and Ethnic Residential Segregation Across the United States, Chapter 2: Study Design](https://library.oapen.org/bitstream/id/7eb0efc5-1706-44bd-ba64-28e1569117f4/978-3-031-38371-7.pdf), 2023
+
+- Fosset: [New methods for measuring and analyzing segregation](https://library.oapen.org/bitstream/id/3b1e8851-8f2e-4f17-8f6e-17076f39a845/1002008.pdf), 2017
+
+- Reardon & Firebaugh: [Chapter 2: Measures of Multigroup Segregation](https://journals-sagepub-com.proxy1.library.virginia.edu/doi/abs/10.1111/1467-9531.00110), Sociological Methodology 2002 32:1, 33-67

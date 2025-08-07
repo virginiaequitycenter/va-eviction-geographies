@@ -1,0 +1,18 @@
+# ignore project files
+.Rproj.user/
+.Rhistory
+.Ruserdata
+.DS_Store
+.Rbuildignore
+
+# ignore non-public data
+.RData
+data/cases_residential_only.txt
+data/app_data/
+data/evictions_clean.csv
+
+# ignore supplementary folders 
+to_archive/
+
+# ignore shinyapps connection
+explore-evictions/rsconnect/*

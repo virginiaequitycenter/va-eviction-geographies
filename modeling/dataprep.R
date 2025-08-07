@@ -8,7 +8,7 @@ library(tigris)
 
 # 2024 (post-COVID)----
 
-# *2024 Evictions (before collapsing court jurisdictions) ---- 
+## 2024 Evictions (before collapsing court jurisdictions) ---- 
 # From dataprep/2_evictions.R:
 
 evictions24 <- read_csv("data/evictions_clean.csv") %>%
@@ -19,7 +19,7 @@ eviction_counts24 <- evictions24 %>%
   group_by(court, locality, fips) %>%
   count(name = "total_filed24")
 
-# *Census measures (2019-2023) before collapsing and deriving percents: ----
+## Census measures (2019-2023) before collapsing and deriving percents: ----
 
 rename_variables <- . %>%
   rename(total_pop = "B01003_001E", # total population
@@ -90,7 +90,7 @@ va_counties_aland <- counties(state = "VA", year = 2023) %>%
   select(GEOID, landarea_sqmi) %>%
   st_drop_geometry()
   
-# *Landlord summaries (2022-2024) before collapsing ----
+## Landlord summaries (2022-2024) before collapsing ----
 evictions2224 <- read_csv("data/evictions_clean.csv") %>%
   filter(filed_year >= "2022",
          filed_year <= "2024") %>%
@@ -138,8 +138,7 @@ landlord_summary2224 <- total_filed %>%
   left_join(n_business_plaintiffs) %>%
   left_join(n_plaintiffs_serial)
   
-  
-# *Collapse ----
+## Collapse ----
 
 # Join
 joined24 <- full_join(eviction_counts24, county23, by = join_by(fips == county_fips)) %>%
@@ -164,7 +163,7 @@ to_collapse <- joined24 %>%
 ok_already <- joined24 %>% 
   filter(!fips %in% to_collapse$fips)
 
-# *Add values
+# Add values
 collapsed24 <- to_collapse %>% 
   group_by(NAME) %>% 
   summarise(total_filed24 = sum(total_filed24, na.rm = T), 
@@ -192,13 +191,13 @@ collapsed24 <- to_collapse %>%
             landarea_sqmi = sum(landarea_sqmi, na.rm = T)) %>% 
   bind_rows(ok_already)
 
-# Calculate some variables using new collapsed values:
+# Calculate some variables using new collapsed values
 collapsed24 <- collapsed24 %>%
   mutate(
     eviction_rate24 = total_filed24 / rental_units,
     pct_rental_units = (rental_units/housing_units) * 100,
     pct_burdened = case_when(
-      total_pop > 0 ~ (total_burdened/total_pop) * 100,
+      total_pop > 0 ~ (total_burdened/rental_units) * 100,
       TRUE ~ 0),
     exploit = med_gross_rent / med_tax,
     exploit_MOE = moe_ratio(med_gross_rent, med_tax, med_gross_rent_MOE, med_tax_MOE),
@@ -209,9 +208,9 @@ collapsed24 <- collapsed24 %>%
     prop_landlord_serial = n_plaintiffs_serial / total_plaintiffs,
     pop_density = total_pop / landarea_sqmi)
 
-# *Separation indices: ----
+## Separation indices ----
 # From dataprep/4_separation_indices.R:
-dissim23_collapsed <- read_csv("modeling/dissim23_collapsed.csv")
+dissim23_collapsed <- read_csv("modeling/data/dissim23_collapsed.csv")
 
 # Join with dissimilarity indices
 collapsed24 <- collapsed24 %>% 
@@ -225,12 +224,12 @@ collapsed24 <- collapsed24 %>%
                    "pct_hispanic", "locality", "county_collapsed")))
 
 # Save
-write_csv(collapsed24, "modeling/collapsed24.csv")
+write_csv(collapsed24, "modeling/data/collapsed24.csv")
 
 
 # 2019 (pre-COVID) ----
 
-# *2019 Evictions (before collapsing court jurisdictions) ---- 
+## 2019 Evictions (before collapsing court jurisdictions) ---- 
 # From dataprep/2_evictions.R:
 
 evictions19 <- read_csv("data/evictions_clean.csv") %>%
@@ -241,45 +240,7 @@ eviction_counts19 <- evictions19 %>%
   group_by(court, locality, fips) %>%
   count(name = "total_filed19")
 
-# *Census measures (2015-2019) before collapsing and deriving percents: ----
-
-rename_variables <- . %>%
-  rename(total_pop = "B01003_001E", # total population
-         undergrad_pop = "B14001_008E", # total undergrad population
-         grad_pop = "B14001_009E", # total grad school population
-         housing_units = "B25002_001E", # total occupied housing units 
-         rental_units = "B25003_003E", # (Tenure: total renter-occupied housing units)
-         rental_pop = "B25008_003E", # (Pop: total pop of renter-occupied housing units)
-         pct_pov = "S1701_C03_001E", # poverty rate
-         med_hh_income = "S1901_C01_012E", # median household income 
-         rent30 = "B25070_007E", # N renters with 30-34.9% of income to rent 
-         rent35 = "B25070_008E", # N renters with 35-39.9% of income to rent 
-         rent40 = "B25070_009E", # N renters with 40-49.9% of income to rent 
-         rent50 = "B25070_010E", # N renters with 50+% of income to rent 
-         med_gross_rent = "B25064_001E", # median gross rent estimate
-         med_gross_rent_MOE = "B25064_001M", # median gross rent MOE 
-         pct_white = "DP05_0079PE", # percent white alone 
-         pct_black = "DP05_0080PE", # percent black or African American alone
-         pct_hispanic = "DP05_0073PE", # percent Hispanic or Latino
-         med_tax = "B25103_001E", # median real estate taxes paid for owner-occupied housing units
-         med_tax_MOE = "B25103_001M", # median real estate taxes MOE
-         moved_county = "B07013_009E", # renter-occupied units where householder moved within county
-         moved_va = "B07013_012E", # renter-occupied units where householder moved from a diff county within state 
-         moved_otherstate = "B07013_015E", # renter-occupied units where householder that moved from a diff state
-         moved_abroad = "B07013_018E") # renter-occupied units where householder moved from abroad 
-
-vars <- c("B01003_001",    # total pop
-          "B14001_008", "B14001_009",   # total college student pop
-          "B25002_001",    # total housing units
-          "B25003_003",    # total renter-occupied units
-          "B25008_003",    # total pop of renter-occupied units 
-          "S1701_C03_001", # pov rate
-          "S1901_C01_012", # med hh income
-          "B25070_007", "B25070_008", "B25070_009", "B25070_010", # rent burden
-          "B25064_001",    # med rent 
-          "DP05_0079P", "DP05_0080P", "DP05_0073P", # race and ethnicity 
-          "B25103_001",    # med tax
-          "B07013_009", "B07013_012", "B07013_015", "B07013_018") # residential mobility
+## Census measures (2015-2019) before collapsing and deriving percents ----
 
 county_raw <- get_acs(geography = "county",
                       year = 2019,
@@ -312,7 +273,7 @@ va_counties_aland <- counties(state = "VA", year = 2019) %>%
   select(GEOID, landarea_sqmi) %>%
   st_drop_geometry()
 
-# *Landlord summaries (2018-2019) before collapsing ----
+## Landlord summaries (2018-2019) before collapsing ----
 evictions1819 <- read_csv("data/evictions_clean.csv") %>%
   filter(filed_year >= "2018",
          filed_year <= "2019") %>%
@@ -360,8 +321,7 @@ landlord_summary1819 <- total_filed %>%
   left_join(n_business_plaintiffs) %>%
   left_join(n_plaintiffs_serial)
 
-
-# *Collapse ----
+## Collapse ----
 
 # Join
 joined19 <- full_join(eviction_counts19, county19, by = join_by(fips == county_fips)) %>%
@@ -420,7 +380,7 @@ collapsed19 <- collapsed19 %>%
     eviction_rate19 = total_filed19 / rental_units,
     pct_rental_units = (rental_units/housing_units) * 100,
     pct_burdened = case_when(
-      total_pop > 0 ~ (total_burdened/total_pop) * 100,
+      total_pop > 0 ~ (total_burdened/rental_units) * 100,
       TRUE ~ 0),
     exploit = med_gross_rent / med_tax,
     exploit_MOE = moe_ratio(med_gross_rent, med_tax, med_gross_rent_MOE, med_tax_MOE),
@@ -431,9 +391,9 @@ collapsed19 <- collapsed19 %>%
     prop_landlord_serial = n_plaintiffs_serial / total_plaintiffs,
     pop_density = total_pop / landarea_sqmi)
 
-# *Separation indices: ----
+## Separation indices ----
 # From dataprep/4_separation_indices.R:
-dissim19_collapsed <- read_csv("modeling/dissim19_collapsed.csv")
+dissim19_collapsed <- read_csv("modeling/data/dissim19_collapsed.csv")
 
 # Join with dissimilarity indices
 collapsed19 <- collapsed19 %>% 
@@ -447,4 +407,4 @@ collapsed19 <- collapsed19 %>%
                      "pct_hispanic", "locality", "county_collapsed")))
 
 # Save
-write_csv(collapsed19, "modeling/collapsed19.csv")
+write_csv(collapsed19, "modeling/data/collapsed19.csv")

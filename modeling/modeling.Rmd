@@ -1,0 +1,174 @@
+---
+title: "Modeling Eviction Trends in Virginia"
+output: 
+  html_document:
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+library(broom)
+library(GGally)
+library(marginaleffects)
+library(modelsummary)
+library(tidyverse)
+library(tinytable)
+```
+
+# Questions
+
+1.  What community characteristics in each county influence 2024 eviction rates? How has that changed from pre-covid, or 2019 eviction rates?
+
+2.  What landlord characteristics in each county influence serial nuisance filings? How has that changed from pre-covid (2019)?
+
+## **Model Variables: (county level)**
+
+2019-2023 & 2015-2019 ACS: 
+
+-   **% Rental Households** = (number of rental households / total number of households) \* 100
+-   **% Rent Burdened** = (number of renters who pay between 30-50+ of their income to rent / total population) \* 100
+-   **Rent Exploitation** = Median gross rent / median tax value
+-   **Population Density** = number of persons per square mile (based on tigris aland)
+-   **% Students** = (number of students / total population) \* 100
+-   \% non-minoritized (number of individuals that identify as white / total population) \* 100
+-   **Residential mobility rate** = number of rental households where there renter moved within the last year / total rental households
+-   **Dissimilarity indices**: white/Black and white/Hispanic dissimilarity measures by county
+
+Court Eviction Records:
+
+-   **% Landlords operating as a business** (non-residential plaintiffs) between 2022-2024 and 2018-2019
+-   **Proportion of distinct landlords that engaged in serial filing behavior** (N engage in serial filings / N landlords) per county between 2022-2024 and 2018-2019
+-   **% of filings that were serial** between 2022-2024 and 2018-2019
+-   **N Evictions** filed in 2024 and 2019 
+-   **Eviction rate** = number of evictions in 2024 per region / number of renting households per 2023 ACS in region and number of evictions in 2019 / number of renting households per 2019 ACS in region 
+
+
+```{r data, include=FALSE}
+# Community characteristics:
+county_23 <- read_csv("data/county_23.csv") #2023 ACS by county
+county_19 <- read_csv("data/county_19.csv") #2019 ACS by county
+dissim_23 <- read_csv("data/dissimilarity_23.csv") #Black/white and Hispanic/white dissimilarity by county 2023
+dissim_19 <- read_csv("data/dissimilarity_19.csv") #Black/white and Hispanic/white dissimilarity by county 2019
+
+# Landlord characteristics:
+landlord_summary_2224 <- read_csv("data/landlord_summary2224.csv") #2022-2024 landlord characteristics 
+landlord_summary_1819 <- read_csv("data/landlord_summary1819.csv") #2018-2019 landlord characteristics
+
+# Evictions: 
+evictions24 <- read_csv("data/evictions24.csv") %>%
+  group_by(fips) %>%
+  summarise(evictions24 = n()) # 2024 evictions
+
+evictions19 <- read_csv("data/evictions19.csv") %>%
+  group_by(fips) %>%
+  summarise(evictions19 = n())
+
+# Post-COVID:
+# Join evictions by county with 2023 ACS measures and calculate 2024 eviction rates 
+county_measures24 <- landlord_summary_2224 %>%
+  left_join(county_23, by = join_by(fips == county_fips)) %>%
+  left_join(dissim_23, by = join_by(fips == county)) %>%
+  left_join(evictions24, by = join_by(fips == fips)) %>%
+  mutate(eviction_rate24 = evictions24 / rental_units)
+
+# Collapsed data:
+data_collapsed24 <- read_csv("data/data_collapsed24.csv")
+
+
+# Pre-COVID:
+county_measures19 <- landlord_summary_1819 %>%
+  left_join(county_19, by = join_by(fips == county_fips)) %>%
+  left_join(dissim_19, by = join_by(fips == county)) %>%
+  left_join(evictions19, by = join_by(fips == fips)) %>%
+  mutate(eviction_rate19 = evictions19 / rental_units)
+```
+
+# Explore
+
+### Comparing 2019 eviction rates to 2024
+
+```{r, message=FALSE}
+# 2024 Eviction Rates
+county_measures24 %>%
+  select(prop_landlord_serial, pop_density, housing_density, percent_burdened, exploit, mobility_rate, percent_white, 
+         percent_business, eviction_rate24) %>%
+  ggpairs()
+
+data_collapsed24 %>%
+  select(prop_landlord_serial, pop_density, housing_density, percent_burdened, exploit, mobility_rate, percent_business, eviction_rate24) %>%
+  ggpairs()
+```
+
+```{r, message=FALSE}
+# 2019 Eviction Rates
+county_measures19 %>%
+  select(prop_landlord_serial, pop_density, housing_density, percent_burdened, exploit, mobility_rate, percent_white, 
+         percent_business, eviction_rate19) %>%
+  ggpairs()
+```
+#### Compare 2019 to 2024 Evictions Rate Models
+
+```{r}
+models <- list(
+  # Percent business on 2024 eviction counts
+  "Percent Business" = glm(evictions24 ~ pop_density + housing_density + percent_burdened + exploit + mobility_rate +
+              percent_white + percent_business + percent_students, 
+              offset(log(rental_units)), data = county_measures24, family = poisson),
+  # Proportion of serial filing landlords on 2024 eviction counts
+  "Proportion Serial" = glm(evictions24 ~ pop_density + housing_density + percent_burdened + exploit + mobility_rate +
+               percent_white + prop_landlord_serial + percent_students +
+               offset(log(rental_units)), data = county_measures24, family = poisson),
+  # Percent business on 2019 eviction counts
+  "Percent Business" = glm(evictions19 ~ pop_density + housing_density + percent_burdened + exploit + mobility_rate +
+              percent_white + percent_business + percent_students, 
+              offset(log(rental_units)), data = county_measures19, family = poisson),
+  # Proportion of serial filing landlords on 2019 eviction counts
+  "Proportion Serial" = glm(evictions19 ~ pop_density + housing_density + percent_burdened + exploit + mobility_rate +
+               percent_white + prop_landlord_serial + percent_students +
+               offset(log(rental_units)), data = county_measures19, family = poisson)
+)
+
+modelsummary(models, stars = TRUE) %>%
+  group_tt(j = list("2024" = 2:3, "2019" = 4:5))
+
+```
+
+
+### Serial filings as a function of community and landlord characteristics (zip and county)
+
+
+```{r}
+
+# Add county characteristics to all 2024 evictions 
+evictions24_all <- read_csv("data/evictions24.csv")
+evictions24_all <- evictions24_all %>%
+  left_join(county_measures24, by = join_by(fips == fips))
+
+evictions19_all <- read_csv("data/evictions19.csv")
+evictions19_all <- evictions19_all %>%
+  left_join(county_measures19, by = join_by(fips == fips))
+
+
+# 2024 serial filings
+serial24 <- glm(serial_filing ~ plaintiff_non_residential + pop_density + percent_burdened + 
+                  exploit + mobility_rate + percent_white + prop_landlord_serial + percent_students,
+                data = evictions24_all, family = binomial)
+# 2019 serial filings 
+serial19 <- glm(serial_filing ~ plaintiff_non_residential + county + pop_density + percent_burdened + 
+                  exploit + mobility_rate + percent_white + prop_landlord_serial + percent_students,
+                data = evictions19_all, family = binomial)
+
+
+tidy_serial24 <- serial24 %>%
+  tidy()
+
+summary(serial24)
+summary(tidy_serial24)
+
+# tidy_serial24 %>%
+#   filter(term != "plaintiff_non_residentialTRUE") %>%
+#   ggplot(aes(estimate)) +
+#   geom_histogram()
+
+```
+
